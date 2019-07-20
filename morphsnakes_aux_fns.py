@@ -1,7 +1,5 @@
 import numpy as np
 from matplotlib import pyplot as plt
-import basics.dataio as dio
-import basics.plotting.plotting as bplt
 import mcubes
 from scipy import ndimage as ndi
 import basics.h5py_wrapper as h5
@@ -76,9 +74,24 @@ def plot_levelset_result(levelset, img, name='', imdir='./', fig=None, fig2=None
     ax.set_title(title)
 
     if save:
-        imdir = dio.prepdir(imdir)
-        dio.ensure_dir(imdir)
-        bplt.set_axes_equal(ax)
+        imdir = os.path.join(imdir, '')
+        d = os.path.dirname(imdir)
+        if not os.path.exists(d):
+            print('le.ensure_dir: creating dir: ', d)
+            os.makedirs(d)
+
+        # set axes equal
+        limits = np.array([
+            ax.get_xlim3d(),
+            ax.get_ylim3d(),
+            ax.get_zlim3d(),
+        ])
+        origin = np.mean(limits, axis=1)
+        radius = 0.5 * np.max(np.abs(limits[:, 1] - limits[:, 0]))
+        ax.set_xlim3d([origin[0] - radius, origin[0] + radius])
+        ax.set_ylim3d([origin[1] - radius, origin[1] + radius])
+        ax.set_zlim3d([origin[2] - radius, origin[2] + radius])
+
         # ax.view_init(0, 30)
         # imfn = imdir + '{0:06d}'.format(counter[0]) + '.png'
         # print 'saving ', imfn
@@ -134,7 +147,12 @@ def plot_levelset_result(levelset, img, name='', imdir='./', fig=None, fig2=None
             plt.text(0.5, 0.9, title, va='center', ha='center', transform=fig2.transFigure)
 
             if save:
-                dio.ensure_dir(imdir)
+                # Ensure that the directory exists
+                d = os.path.dirname(imdir)
+                if not os.path.exists(d):
+                    print('le.ensure_dir: creating dir: ', d)
+                    os.makedirs(d)
+
                 ax2.set_aspect('equal')
                 imfn = imdir + name + '_slice{0:01d}.png'.format(ii)
                 print('saving ', imfn)

@@ -6,10 +6,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 import morphsnakes as ms
 from morphsnakes import _curvop
-import basics.h5py_wrapper as dh5
 import copy
-import basics.dataio as dio
-import basics.plotting.plotting as bplt
 import mcubes
 import morphsnakes_aux_fns as msaux
 from scipy import ndimage as ndi
@@ -203,9 +200,24 @@ def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None
 
                 if save:
                     if impath is not None and counter[0] == 0:
-                        dio.ensure_dir(impath)
+                        # ensure the directory exists
+                        d = os.path.dirname(impath)
+                        if not os.path.exists(d):
+                            print('run_morphsnakes.py: creating dir: ', d)
+                            os.makedirs(d)
 
-                    bplt.set_axes_equal(ax)
+                    # set axes equal
+                    limits = np.array([
+                        ax.get_xlim3d(),
+                        ax.get_ylim3d(),
+                        ax.get_zlim3d(),
+                    ])
+                    origin = np.mean(limits, axis=1)
+                    radius = 0.5 * np.max(np.abs(limits[:, 1] - limits[:, 0]))
+                    ax.set_xlim3d([origin[0] - radius, origin[0] + radius])
+                    ax.set_ylim3d([origin[1] - radius, origin[1] + radius])
+                    ax.set_zlim3d([origin[2] - radius, origin[2] + radius])
+
                     # ax.view_init(0, 30)
                     # imfn = impath + '{0:06d}'.format(counter[0]) + '.png'
                     # print 'saving ', imfn
@@ -273,7 +285,11 @@ def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None
                 if save:
                     print('impath = ', impath)
                     if impath is not None and counter[0] == 0:
-                        dio.ensure_dir(impath)
+                        # ensure the directory exists
+                        d = os.path.dirname(impath)
+                        if not os.path.exists(d):
+                            print('run_morphsnakes.py: creating dir: ', d)
+                            os.makedirs(d)
 
                     ax2.set_aspect('equal')
                     ax3.set_aspect('equal')
@@ -326,7 +342,11 @@ def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None
                 if save:
                     print('impath = ', impath)
                     if impath is not None and counter[0] == 0:
-                        dio.ensure_dir(impath)
+                        # ensure the directory exists
+                        d = os.path.dirname(impath)
+                        if not os.path.exists(d):
+                            print('run_morphsnakes.py: creating dir: ', d)
+                            os.makedirs(d)
 
                     imfn = impath + 'diff_slices_{0:06d}'.format(counter[0]) + '.png'
                     print('saving ', imfn)
@@ -375,7 +395,13 @@ def load_img(fn, channel, dset_name='exported_data', axes_order='xyzc'):
             img = np.load(fn)[:, :, :, channel]
 
     elif fn[-2:] == 'h5':
-        hfn = dh5.h5open(fn)
+        # filename = file_architecture.os_i(filename)
+        if os.path.exists(fn):
+            hfn = h5py.File(fn, 'r')
+        else:
+            print("File " + fn + " does not exist")
+            hfn = h5py.File(fn, 'w')
+
         # ilastik internally swaps axes. 1: class, 2: y, 3: x 4 : z
         # so flip the axes to select channel, y, x, z
         if channel is not None:
@@ -615,7 +641,13 @@ if __name__ == '__main__':
         for (fn, kk) in zip(todo, range(len(todo))):
             timepoint = fn.split('_c')[0].split('Time_')[-1]
             outdir_k = outdir + 'morphsnakes_check_' + timepoint + '/'
-            dio.ensure_dir(outdir_k)
+
+            # Ensure that the directory exists
+            d = os.path.dirname(outdir_k)
+            if not os.path.exists(d):
+                print('run_morphsnakes.py: creating dir: ', d)
+                os.makedirs(d)
+
             outfn_ply = outdir + args.outputfn_ply + timepoint + '.ply'
             olsfn = outdir
 
@@ -635,7 +667,9 @@ if __name__ == '__main__':
                     if args.init_ls_fn[-3:] == 'npy':
                         init_ls = np.load(args.init_ls_fn)
                     elif args.init_ls_fn[-3:] in ['.h5', 'df5']:
-                        init_ls = dh5.load_dset(args.init_ls_fn, 'initial_levelset')
+                        f = h5py.File(args.init_ls_fn, 'r')
+                        init_ls = f['initial_levelset'][:]
+                        f.close()
 
                     radius_guess = None
                     # Erode the init_ls several times to avoid spilling out of ROI on next round
@@ -706,7 +740,7 @@ if __name__ == '__main__':
             -ofn_ls mesh_apical_ms_000090 -save
         """
         fn = args.input
-        outputdir = dio.prepdir(args.outputdir)
+        outputdir = os.path.join(args.outputdir, '')
         imdir = outputdir + 'morphsnakes_check/'
         ofn_ply_base = args.outputfn_ply
         ofn_ls_base = args.outputfn_ls
@@ -797,7 +831,7 @@ if __name__ == '__main__':
             -dtype h5 -init_ls /Users/npmitchell/Dropbox/Soft_Matter/UCSB/qbio-vip8_shared/tolls/Time_000000_c3_levelset.h5 -l2 2 -clip 500
         """
         fn = args.input
-        outputdir = dio.prepdir(args.outputdir)
+        outputdir = os.path.join(args.outputdir, '')
         outfn_ply = outputdir + args.outputfn_ply
         if outfn_ply[-4:] != '.ply':
             outfn_ply += '.ply'
@@ -866,7 +900,9 @@ if __name__ == '__main__':
             if args.init_ls_fn[-3:] == 'npy':
                 init_ls = np.load(args.init_ls_fn)
             elif args.init_ls_fn[-3:] in ['.h5', 'df5']:
-                init_ls = dh5.load_dset(args.init_ls_fn, 'initial_levelset')
+                f = h5py.File(args.init_ls_fn, 'r')
+                init_ls = f['initial_levelset'][:]
+                f.close()
 
             radius_guess = None
             center_guess = None
