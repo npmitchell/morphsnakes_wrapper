@@ -596,7 +596,8 @@ if __name__ == '__main__':
                         help='If positive, specifies the radius of the initial implicit level set guess',
                         type=float, default=-1)
     parser.add_argument('-center_guess', '--center_guess',
-                        help='If not empty_string, specifies the center of the initial level set guess.',
+                        help='If not empty_string, specifies the center of the initial level set guess.'
+                             'The delimiter between each positional value is a comma',
                         type=str, default="empty_string")
     parser.add_argument('-ss', '--subsampling_factor', help='Factor to multiply the coordinates of the extracted ls',
                         type=int, default=4)

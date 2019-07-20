@@ -2,7 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 import mcubes
 from scipy import ndimage as ndi
-import basics.h5py_wrapper as h5
+import h5py
+import os
 
 """
 Auxiliary functions for run_morphsnakes.py module
@@ -171,7 +172,7 @@ def dilate(u):
     return u
 
 
-def save_ls_as_h5(filename, ls):
+def save_ls_as_h5(filename, ls, overwrite=False):
     """
 
     Parameters
@@ -187,5 +188,33 @@ def save_ls_as_h5(filename, ls):
         a pointer to the file on disk
     """
     # Create the hdf5 file and/or add data to the file
-    return h5.write(ls, overwrite=True, filename=filename, key='implicit_levelset')
+    if filename is None:
+        filename = os.path.dirname(ls.Sdata.fileCine) + '/hdf5/test' + '.hdf5'
+
+    # Create the hdf5 file
+    # f, do = create(filename, overwrite=False)
+    if not os.path.exists(filename):
+        print(filename)
+        f = h5py.File(filename, 'w')
+        do = True
+    else:
+        if overwrite:
+            f = h5py.File(filename, 'w')
+            do = True
+        else:
+            print("File " + filename + " already exists, skip ")
+            do = False
+
+    if do:
+        if type(ls) in [np.ndarray]:
+            dataname = 'implicit_levelset'
+
+            if dataname not in f:
+                dset = f.create_dataset(dataname, data=ls, chunks=True) 
+            else:
+                f[dataname][...] = ls  # dimensions should already match !!!
+
+        f.close()
+    else:
+        raise RuntimeError('Could not create file: ' + filename)
 
