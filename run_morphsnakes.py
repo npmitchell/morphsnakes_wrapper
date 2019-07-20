@@ -605,7 +605,7 @@ if __name__ == '__main__':
     parser.add_argument('-save', '--save_callback', help='Save images of ls meshes during MS', action='store_true')
     parser.add_argument('-show', '--show_callback', help='Display images of ls meshes during MS', action='store_true')
     parser.add_argument('-dtype', '--saved_datatype', help='Filetype for output implicit level sets',
-                        type=str, default='npy')
+                        type=str, default='h5')
     parser.add_argument('-dset_name', '--dset_name', help='Name of dataset to load from hdf5 input file on which to run',
                         type=str, default='exported_data')
     parser.add_argument('-permute', '--permute_axes', help='Axes order of training data (xyzc, cxyz, cyxz, etc)',
@@ -948,7 +948,6 @@ if __name__ == '__main__':
         # Save ls for this timepoint as npy or hdf5 file
         if args.saved_datatype == 'npy':
             # Save ls for this timepoint as npy file
-            raise RuntimeError('bad!')
             print('saving ', outfn_ls)
             np.save(outfn_ls, ls)
         elif args.saved_datatype in ['h5', 'hdf5']:
