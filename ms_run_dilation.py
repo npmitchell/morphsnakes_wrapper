@@ -1,7 +1,7 @@
 from __future__ import print_function
 import logging
 import numpy as np
-import basics.h5py_wrapper as dh5
+import h5py
 import basics.dataio as dio
 import mcubes
 import morphsnakes_aux_fns as msaux
@@ -75,7 +75,11 @@ for fn in fns:
     if args.input_datatype == 'npy':
         u = np.load(fn)
     elif args.input_datatype in ['h5', 'hdf5']:
-        u = dh5.h5open(fn, 'r')
+        if os.path.exists(fn):
+            u = h5py.File(fn, 'r')
+        else:
+            print("File " + fn + " does not exist")
+            u = h5py.File(fn, 'w')
         u = u['implicit_levelset']
     else:
         raise RuntimeError('Could not parse input datatype')

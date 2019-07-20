@@ -124,7 +124,15 @@ def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None
     else:
         fig2.clf()
 
-    ax = fig.add_subplot(111, projection='3d')
+    try:
+        ax = fig.add_subplot(111, projection='3d')
+    except ValueError:
+        try:
+            ax = fig.add_subplot(111, projection='3d')
+        except ValueError:
+            from mpl_toolkits.mplot3d import Axes3D
+            ax = fig.add_subplot(111, projection='3d')
+
     if img is not None:
         # Also show cross sections of the volume
         ax2 = fig2.add_subplot(131)
