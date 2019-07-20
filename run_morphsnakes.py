@@ -2,19 +2,15 @@ from __future__ import print_function
 import os
 import logging
 import numpy as np
-# from imageio import imread
 import matplotlib
 from matplotlib import pyplot as plt
 import morphsnakes as ms
 from morphsnakes import _curvop
 import basics.h5py_wrapper as dh5
 import copy
-# from polyhedron.polyhedron import Polyhedron
-# import data_handling as dh
 import basics.dataio as dio
 import basics.plotting.plotting as bplt
 import mcubes
-# from mpl_toolkits.mplot3d import Axes3D
 import morphsnakes_aux_fns as msaux
 from scipy import ndimage as ndi
 

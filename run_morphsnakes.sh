@@ -33,9 +33,10 @@ command+="-i ./ "
 command+="-ofn_ply $ofn_ply -rad0 10 -prenu $pre_nu -presmooth $pre_smoothing "
 command+="-ofn_ls $ofn_ls -l1 $lambda1 -l2 $lambda2 -nu $nu "
 command+="-smooth $smoothing -postsmooth $post_smoothing -postnu $post_nu "
-command+="-n "$niter" -n0 "$niter0" -exit "$exit_thres" -prob Probabilities_cells.h5 "
+command+="-n "$niter" -n0 "$niter0" -exit "$exit_thres" -prob Probabilities.h5 "
 command+="-init_ls "$mslsDir"msls_apical_init.npy "
-command+="-dtype h5 -save"
+command+="-dtype h5 "
+# command+="-save "
 echo "$command"
 $command
 # example command:
@@ -66,7 +67,7 @@ mlxprogram='surface_rm_resample20k_reconstruct_LS3_1p2pc_ssfactor4.mlx'
 fns=$mslsDir$ofn_ply*'.ply'
 for pcfile in $fns; do
     # Clean up mesh file for this timepoint using MeshLab -----------------
-    outputmesh=${pcfile/$ofn_ply/'mesh_apical_'}
+    outputmesh=${pcfile/$ofn_ply/'mesh_apical_0'}
     meshlabscript='./'$mlxprogram
     if [ ! -f $outputmesh ]; then
         echo $outputmesh

@@ -1,22 +1,13 @@
-import os
-import logging
 import numpy as np
-from imageio import imread
-import matplotlib
 from matplotlib import pyplot as plt
-import morphsnakes as ms
-import basics.h5py_wrapper as dh5
-import copy
-from polyhedron.polyhedron import Polyhedron
-import data_handling as dh
 import basics.dataio as dio
 import basics.plotting.plotting as bplt
 import mcubes
-from mpl_toolkits.mplot3d import Axes3D
 from scipy import ndimage as ndi
 import basics.h5py_wrapper as h5
 
 """
+Auxiliary functions for run_morphsnakes.py module
 """
 
 
