@@ -10,6 +10,7 @@ import copy
 import mcubes
 import morphsnakes_aux_fns as msaux
 from scipy import ndimage as ndi
+import h5py
 
 '''Extract levelset from 2d or volumetric data. This is a wrapper script for using contained in the morphsnakes module.
 

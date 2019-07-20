@@ -210,7 +210,7 @@ def save_ls_as_h5(filename, ls, overwrite=False):
             dataname = 'implicit_levelset'
 
             if dataname not in f:
-                dset = f.create_dataset(dataname, data=ls, chunks=True) 
+                dset = f.create_dataset(dataname, data=ls, chunks=True)
             else:
                 f[dataname][...] = ls  # dimensions should already match !!!
 
