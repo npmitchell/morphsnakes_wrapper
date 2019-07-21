@@ -493,7 +493,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
         if center_guess is None:
             center_guess = (np.shape(img)[0]*0.5, np.shape(img)[1]*0.5, np.shape(img)[2]*0.5)
         if radius_guess is None:
-            radius_guess = min(center_guess) * 0.5
+            radius_guess = min(np.abs(center_guess)) * 0.5
 
         init_ls = ms.circle_level_set(img.shape, center_guess, radius_guess)
 
@@ -666,6 +666,7 @@ if __name__ == '__main__':
                     else:
                         radius_guess = None
                 else:
+                    # The initial level set filename was supplied. Figure out what file type it is
                     if args.init_ls_fn[-3:] == 'npy':
                         init_ls = np.load(args.init_ls_fn)
                     elif args.init_ls_fn[-3:] in ['.h5', 'df5']:
@@ -673,6 +674,7 @@ if __name__ == '__main__':
                         init_ls = f['initial_levelset'][:]
                         f.close()
 
+                    # Since there is an initial set, don't use the default spherical guess
                     radius_guess = None
                     # Erode the init_ls several times to avoid spilling out of ROI on next round
                     for _ in range(abs(args.init_ls_nu)):
@@ -842,46 +844,14 @@ if __name__ == '__main__':
             outfn_ls += '.npy'
         imdir = outputdir + 'morphsnakes_check/'
 
-        # Could create initial level set from polyhedron built from PLY, but this is extremely slow
-        # # create initial guess from PLY
-        # meshfn = outputdir + 'plys_depth10/mesh_apical_00001_ascii.ply'
-        # mm = mesh.Mesh(meshfn)
-        # yy, xx, zz = copy.deepcopy(mm.points[:, 0]), copy.deepcopy(mm.points[:, 1]), copy.deepcopy(mm.points[:, 2])
-        # mm.points[:, 0] = xx
-        # mm.points[:, 1] = zz
-        # mm.points[:, 2] = yy
-        # # rescale the mesh
-        # mm.points *= 0.2619
-        # # Convert to polyhedron
-        # polyh = Polyhedron(mm.triangles, mm.points)
-        # img = load_img(fn, channel=1)
-        # xtmp = np.arange(0, np.shape(img)[0])
-        # ytmp = np.arange(0, np.shape(img)[1])
-        # ztmp = np.arange(0, np.shape(img)[2])
-        # print('loaded and made ranges')
-        # xm, ym, zm = np.meshgrid(xtmp, ytmp, ztmp)
-        # xyz = np.dstack((xm.ravel(), ym.ravel(), zm.ravel()))[0]
-
-        # # Get initial guess by levelset analysis
-        # init_ls = extract_levelset(fn, iterations=args.niter, channel=0, init_ls=None,
-        #                            impath=rootdir + 'morphsnakes_testing/', plot_each=15,
-        #                            comparison_mesh=None)
-
-        # This is too slow to be practical
-        # init_ls = dh.pts_in_polyhedron(xyz, polyh, boundary_is_inside=True)
-        # init_ls = init_ls.reshape(np.shape(img))
-        # print 'done reshaping'
-        # plt.close('all')
-        # plt.imshow(init_ls[int(0.5 * np.shape(img)[0])])
-        # plt.show()
-        # raise RuntimeError
-
-        # # Perform the levelset calculation
-        # ls = extract_levelset(fn, iterations=50, channel=0, init_ls=init_ls,
-        #                       impath=rootfn + 'morphsnakes_testing/',
-        #                       comparison_mesh=None)
-
         if args.init_ls_fn == 'empty_string':
+            load_init = False
+        elif os.path.exists(args.init_ls_fn) and os.path.isfile(args.init_ls_fn):
+            load_init = True
+        else:
+            load_init = False
+
+        if not load_init:
             init_ls = None
 
             if args.radius_guess > 0:
@@ -891,8 +861,7 @@ if __name__ == '__main__':
 
             if not args.center_guess == 'empty_string':
                 if ',' in args.center_guess:
-                    cvals = args.center_guess.split(',')
-                    center_guess = (float(cvals[0]), float(cvals[1]))
+                    center_guess = tuple(float(value) for value in args.center_guess.split(','))
                 else:
                     center_guess = None
             else:
