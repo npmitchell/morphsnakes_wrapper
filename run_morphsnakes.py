@@ -84,7 +84,7 @@ def visual_callback_2d(background, fig=None):
 def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None, rmimages=True,
                        comparison_mesh=None, comparison_polyh=None, fig2=None,
                        img=None, axisorder='yxz', alpha=0.5, compare_mesh_slices=False, sz=5,
-                       thres=0.5, plot_diff=False, plot_mesh3d=False):
+                       thres=0.5, plot_diff=False, plot_mesh3d=False, labelcheckax=False):
     """
     Returns a callback than can be passed as the argument `iter_callback`
     of `morphological_geodesic_active_contour` and
@@ -275,9 +275,11 @@ def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None
                 ax2.set_ylabel('z')
                 ax3.set_ylabel('z')
                 ax4.set_ylabel('y')
-                for axx in [ax2, ax3, ax4]:
-                    axx.xaxis.set_ticks([])
-                    axx.yaxis.set_ticks([])
+                # Remove tick labels if labelcheckax == False
+                if not labelcheckax:
+                    for axx in [ax2, ax3, ax4]:
+                        axx.xaxis.set_ticks([])
+                        axx.yaxis.set_ticks([])
 
                 title = 'Morphological Chan-Vese level set'
                 title += '\n' + r'$t=$' + '{0:d}'.format(counter[0])
@@ -322,8 +324,9 @@ def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None
                 # Show the comparison mesh boundary
                 for axx in [ax5, ax6, ax7]:
                     axx.set_aspect('equal')
-                    axx.xaxis.set_ticks([])
-                    axx.yaxis.set_ticks([])
+                    if not labelcheckax:
+                        axx.xaxis.set_ticks([])
+                        axx.yaxis.set_ticks([])
 
                 # Show the level set
                 ax5.set_xlabel('y')
@@ -432,7 +435,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
                      channel=0, init_ls=None, show_callback=False, save_callback=False, exit_thres=5e-6,
                      center_guess=None, radius_guess=None, impath=None, dset_name='exported_data',
                      plot_each=5, comparison_mesh=None, comparison_polyh=None, axes_order='xyzc', plot_diff=True,
-                     clip=None):
+                     clip=None, labelcheckax=False):
     """Extract the level set from a 2d or 3d image.
 
     Parameters
@@ -500,7 +503,8 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
     # Callback for visual plotting
     callback = visual_callback_3d(show=show_callback, save=save_callback,
                                   plot_each=plot_each, impath=impath, comparison_mesh=comparison_mesh,
-                                  comparison_polyh=comparison_polyh, img=img, plot_diff=plot_diff)
+                                  comparison_polyh=comparison_polyh, img=img, plot_diff=plot_diff,
+                                  labelcheckax=labelcheckax)
 
     # Morphological Chan-Vese (or ACWE)
     ls = ms.morphological_chan_vese(img, iterations=iterations,
@@ -614,6 +618,9 @@ if __name__ == '__main__':
                         type=str, default='xyzc')
     parser.add_argument('-invert', '--invert_probabilities', help='Axes order of training data (xyzc, cxyz, cyxz, etc)',
                         action='store_true')
+    parser.add_argument('-label_ax', '--label_check_axis_ticks',
+                        help='Show the axis labels (numbers, ticks) for the check images',
+                        action='store_true')
     parser.add_argument('-prob', '--probabilities_search_string', help='Seek this file name for probabilities.',
                         type=str, default='Probabilities.h5')
     args = parser.parse_args()
@@ -701,7 +708,8 @@ if __name__ == '__main__':
                                   exit_thres=args.exit_thres, dset_name=args.dset_name,
                                   impath=outdir_k, plot_each=10, save_callback=args.save_callback,
                                   show_callback=args.show_callback,
-                                  comparison_mesh=None, radius_guess=radius_guess, clip=clip)
+                                  comparison_mesh=None, radius_guess=radius_guess, clip=clip,
+                                  labelcheckax=args.label_check_axis_ticks)
 
             # Extract edges of level set and store them in a mesh
             mm = mesh.Mesh()
@@ -905,7 +913,7 @@ if __name__ == '__main__':
                               impath=imdir, plot_each=10, save_callback=args.save_callback,
                               show_callback=args.show_callback,
                               comparison_mesh=None, radius_guess=radius_guess, center_guess=center_guess,
-                              clip=clip)
+                              clip=clip, labelcheckax=args.label_check_axis_ticks)
         print('Extracted level set')
 
         # Extract edges of level set
