@@ -82,8 +82,8 @@ def visual_callback_2d(background, fig=None):
 
 
 def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None, rmimages=True,
-                       comparison_mesh=None, comparison_polyh=None, fig2=None,
-                       img=None, axisorder='yxz', alpha=0.5, compare_mesh_slices=False, sz=5,
+                       comparison_mesh=None, fig2=None,
+                       img=None, axis_order='yxz', alpha=0.5, compare_mesh_slices=False, sz=5,
                        thres=0.5, plot_diff=False, plot_mesh3d=False, labelcheckax=False):
     """
     Returns a callback than can be passed as the argument `iter_callback`
@@ -99,8 +99,22 @@ def visual_callback_3d(fig=None, plot_each=1, show=False, save=True, impath=None
     plot_each : positive integer
         The plot will be updated once every `plot_each` calls to the callback
         function.
+    show : bool
+        make the figure appear to show intermediate results
+    save : bool
+        save the intermediate results to disk
+    impath : None or string
+        path to the directory for saving images
+    rmimages : bool
+        Remove the images from disk after making them
+    comparison_mesh : mesh or None
+        A mesh to compare the intermediate results to, if desired
+    fig2 : matplotlib.figure.Figure instance
+        Second figure where results will be drawn. If not given, a new figure will be created if a mesh comparison is
+        desired.
     plot_diff : bool
         plot the difference between current ls and previous
+
 
     Returns
     -------
@@ -379,7 +393,7 @@ def rgb2gray(img):
     return 0.2989 * img[..., 0] + 0.587 * img[..., 1] + 0.114 * img[..., 2]
 
 
-def load_img(fn, channel, dset_name='exported_data', axes_order='xyzc'):
+def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
     """Load a 2d or 3d grid of intensities from disk
 
     Parameters
@@ -409,9 +423,9 @@ def load_img(fn, channel, dset_name='exported_data', axes_order='xyzc'):
         # ilastik internally swaps axes. 1: class, 2: y, 3: x 4 : z
         # so flip the axes to select channel, y, x, z
         if channel is not None:
-            if axes_order == 'xyzc':
+            if axis_order == 'xyzc':
                 img = hfn[dset_name][:, :, :, channel]
-            elif axes_order == 'yxzc':
+            elif axis_order == 'yxzc':
                 img = hfn[dset_name][:, :, :, channel]
                 img = np.swapaxes(img, 1, 2)
         else:
@@ -434,8 +448,8 @@ def load_img(fn, channel, dset_name='exported_data', axes_order='xyzc'):
 def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=None, post_smoothing=1, post_nu=1,
                      channel=0, init_ls=None, show_callback=False, save_callback=False, exit_thres=5e-6,
                      center_guess=None, radius_guess=None, impath=None, dset_name='exported_data',
-                     plot_each=5, comparison_mesh=None, comparison_polyh=None, axes_order='xyzc', plot_diff=True,
-                     clip=None, labelcheckax=False):
+                     plot_each=5, comparison_mesh=None, axis_order='xyzc', plot_diff=True,
+                     plot_mesh3d=False, clip=None, labelcheckax=False):
     """Extract the level set from a 2d or 3d image.
 
     Parameters
@@ -472,8 +486,6 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
         How often (in #iterations) to save a snapshot png of the morphological process.
     comparison_mesh : mesh.Mesh class instance or None
         If supplied, use this mesh (with attrs mesh.points and mesh.triangles) to compare to the morphsnakes output
-    comparison_polyh : polyhedron.Polyhedron class instance or None
-        If supplied, use this Polyhedron to compare to the morphsnakes output
     clip : float or None
         If not none, clip all values above this in the image on which to run morphsnakes
 
@@ -486,13 +498,14 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
 
     # Load the image.
     print('loading ' + fn)
-    img = load_img(fn, channel, dset_name=dset_name, axes_order=axes_order)
+    img = load_img(fn, channel, dset_name=dset_name, axis_order=axis_order)
 
     if clip is not None:
         img[img > clip] = clip
 
     # Initialization of the level-set.
     if init_ls is None:
+        print('No initial levelset supplied, using default sphere...')
         if center_guess is None:
             center_guess = (np.shape(img)[0]*0.5, np.shape(img)[1]*0.5, np.shape(img)[2]*0.5)
         if radius_guess is None:
@@ -503,8 +516,8 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
     # Callback for visual plotting
     callback = visual_callback_3d(show=show_callback, save=save_callback,
                                   plot_each=plot_each, impath=impath, comparison_mesh=comparison_mesh,
-                                  comparison_polyh=comparison_polyh, img=img, plot_diff=plot_diff,
-                                  labelcheckax=labelcheckax)
+                                  img=img, plot_diff=plot_diff,
+                                  plot_mesh3d=plot_mesh3d, labelcheckax=labelcheckax)
 
     # Morphological Chan-Vese (or ACWE)
     ls = ms.morphological_chan_vese(img, iterations=iterations,
@@ -610,6 +623,7 @@ if __name__ == '__main__':
     # IO options
     parser.add_argument('-save', '--save_callback', help='Save images of ls meshes during MS', action='store_true')
     parser.add_argument('-show', '--show_callback', help='Display images of ls meshes during MS', action='store_true')
+    parser.add_argument('-plot_mesh3d', '--plot_mesh3d', help='Plot the evolving 3d mesh', action='store_true')
     parser.add_argument('-dtype', '--saved_datatype', help='Filetype for output implicit level sets',
                         type=str, default='h5')
     parser.add_argument('-dset_name', '--dset_name', help='Name of dataset to load from hdf5 input file on which to run',
@@ -618,7 +632,7 @@ if __name__ == '__main__':
                         type=str, default='xyzc')
     parser.add_argument('-invert', '--invert_probabilities', help='Axes order of training data (xyzc, cxyz, cyxz, etc)',
                         action='store_true')
-    parser.add_argument('-label_ax', '--label_check_axis_ticks',
+    parser.add_argument('-hide_ticks', '--hide_check_axis_ticks',
                         help='Show the axis labels (numbers, ticks) for the check images',
                         action='store_true')
     parser.add_argument('-prob', '--probabilities_search_string', help='Seek this file name for probabilities.',
@@ -678,7 +692,7 @@ if __name__ == '__main__':
                         init_ls = np.load(args.init_ls_fn)
                     elif args.init_ls_fn[-3:] in ['.h5', 'df5']:
                         f = h5py.File(args.init_ls_fn, 'r')
-                        init_ls = f['initial_levelset'][:]
+                        init_ls = f['implicit_levelset'][:]
                         f.close()
 
                     # Since there is an initial set, don't use the default spherical guess
@@ -707,9 +721,10 @@ if __name__ == '__main__':
                                   nu=args.nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
                                   exit_thres=args.exit_thres, dset_name=args.dset_name,
                                   impath=outdir_k, plot_each=10, save_callback=args.save_callback,
-                                  show_callback=args.show_callback,
+                                  show_callback=args.show_callback, axis_order=args.permute_axes,
+                                  plot_mesh3d=args.plot_mesh3d,
                                   comparison_mesh=None, radius_guess=radius_guess, clip=clip,
-                                  labelcheckax=args.label_check_axis_ticks)
+                                  labelcheckax=not args.hide_check_axis_ticks)
 
             # Extract edges of level set and store them in a mesh
             mm = mesh.Mesh()
@@ -719,6 +734,7 @@ if __name__ == '__main__':
             print('saving ', outfn_ply)
             mm.save(outfn_ply)
 
+            # Save the level set data as a numpy or h5 file
             if args.saved_datatype == 'npy':
                 # Save ls for this timepoint as npy file
                 outfn_ls = outdir + args.outputfn_ls + timepoint + '.npy'
@@ -880,7 +896,7 @@ if __name__ == '__main__':
                 init_ls = np.load(args.init_ls_fn)
             elif args.init_ls_fn[-3:] in ['.h5', 'df5']:
                 f = h5py.File(args.init_ls_fn, 'r')
-                init_ls = f['initial_levelset'][:]
+                init_ls = f['implicit_levelset'][:]
                 f.close()
 
             radius_guess = None
@@ -911,9 +927,9 @@ if __name__ == '__main__':
                               nu=args.nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
                               exit_thres=args.exit_thres, dset_name=args.dset_name,
                               impath=imdir, plot_each=10, save_callback=args.save_callback,
-                              show_callback=args.show_callback,
+                              show_callback=args.show_callback, axis_order=args.permute_axes,
                               comparison_mesh=None, radius_guess=radius_guess, center_guess=center_guess,
-                              clip=clip, labelcheckax=args.label_check_axis_ticks)
+                              plot_mesh3d=args.plot_mesh3d, clip=clip, labelcheckax=not args.hide_check_axis_ticks)
         print('Extracted level set')
 
         # Extract edges of level set
