@@ -864,8 +864,7 @@ if __name__ == '__main__':
         if outfn_ply[-4:] != '.ply':
             outfn_ply += '.ply'
         outfn_ls = outputdir + args.outputfn_ls
-        if outfn_ls[-4:] != '.npy':
-            outfn_ls += '.npy'
+
         imdir = outputdir + 'morphsnakes_check/'
 
         if args.init_ls_fn == 'empty_string':
@@ -943,10 +942,16 @@ if __name__ == '__main__':
         # Save ls for this timepoint as npy or hdf5 file
         if args.saved_datatype == 'npy':
             # Save ls for this timepoint as npy file
+            if outfn_ls[-4:] != '.npy':
+                outfn_ls += '.npy'
+                
             print('saving ', outfn_ls)
             np.save(outfn_ls, ls)
         elif args.saved_datatype in ['h5', 'hdf5']:
             # Save ls for this timepoint as an hdf5 file
+            if outfn_ls[-3:] != '.h5' and outfn_ls[-5:] != '.hdf5':
+                outfn_ls += outfn_ls + '.h5'
+
             print('saving ', outfn_ls)
             msaux.save_ls_as_h5(outfn_ls, ls)
         else:
