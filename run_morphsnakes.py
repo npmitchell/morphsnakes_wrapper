@@ -449,7 +449,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
                      channel=0, init_ls=None, show_callback=False, save_callback=False, exit_thres=5e-6,
                      center_guess=None, radius_guess=None, impath=None, dset_name='exported_data',
                      plot_each=5, comparison_mesh=None, axis_order='xyzc', plot_diff=True,
-                     plot_mesh3d=False, clip=None, labelcheckax=False):
+                     plot_mesh3d=False, clip=None, labelcheckax=False, mask=None):
     """Extract the level set from a 2d or 3d image.
 
     Parameters
@@ -503,6 +503,9 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
     if clip is not None:
         img[img > clip] = clip
 
+    if mask is not None:
+        img *= mask
+
     # Initialization of the level-set.
     if init_ls is None:
         print('No initial levelset supplied, using default sphere...')
@@ -526,6 +529,28 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
                                     post_smoothing=post_smoothing, post_nu=post_nu,
                                     iter_callback=callback, exit_thres=exit_thres)
     return ls
+
+
+def load_data(fn, dataset_name=None):
+    """Load a numpy or hdf5 file from disk
+
+    Parameters
+    ----------
+    fn : str
+        filename of the
+
+    Returns
+    -------
+    data : numpy array
+        dataset loaded from file
+    """
+    if args.init_ls_fn[-3:] == 'npy':
+        data = np.load(args.init_ls_fn)
+    elif args.init_ls_fn[-3:] in ['.h5', 'df5']:
+        f = h5py.File(args.init_ls_fn, 'r')
+        data = f[dataset_name][:]
+        f.close()
+    return data
 
 
 if __name__ == '__main__':
@@ -637,6 +662,8 @@ if __name__ == '__main__':
                         action='store_true')
     parser.add_argument('-prob', '--probabilities_search_string', help='Seek this file name for probabilities.',
                         type=str, default='Probabilities.h5')
+    parser.add_argument('-mask', '--mask_filename', help='Seek this file name for masking the probabilities.',
+                        type=str, default='empty_string')
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG)
 
@@ -715,6 +742,25 @@ if __name__ == '__main__':
             else:
                 clip = None
 
+            # mask the data if mask filename is given
+            if '.' in args.mask_filename:
+                print('Since . appears in mask_filename, assuming full filename with path is given for mask file...')
+                maskfn = args.mask_filename
+                if os.path.exists(maskfn):
+                    raise RuntimeError('Mask filename does not exist! Sought file ' + maskfn)
+            elif maskfn is not 'none' and maskfn is not 'empty_string':
+                print('Since . appears in mask_filename, assuming full filename with path is given for mask file...')
+                maskfn = args.mask_filename + timepoint + args.dtype
+                if os.path.exists(maskfn):
+                    raise RuntimeError('Mask filename does not exist! Sought file ' + maskfn)
+            else:
+                maskfn = None
+                mask = None
+
+            if maskfn is not None:
+                # load the mask
+                mask = load_data(maskfn)
+
             # Perform the levelset calculation
             ls = extract_levelset(fn, iterations=niters, channel=args.channel, init_ls=init_ls,
                                   smoothing=args.smoothing, lambda1=args.lambda1, lambda2=args.lambda2,
@@ -722,7 +768,7 @@ if __name__ == '__main__':
                                   exit_thres=args.exit_thres, dset_name=args.dset_name,
                                   impath=outdir_k, plot_each=10, save_callback=args.save_callback,
                                   show_callback=args.show_callback, axis_order=args.permute_axes,
-                                  plot_mesh3d=args.plot_mesh3d,
+                                  plot_mesh3d=args.plot_mesh3d, mask=mask,
                                   comparison_mesh=None, radius_guess=radius_guess, clip=clip,
                                   labelcheckax=not args.hide_check_axis_ticks)
 
@@ -944,7 +990,7 @@ if __name__ == '__main__':
             # Save ls for this timepoint as npy file
             if outfn_ls[-4:] != '.npy':
                 outfn_ls += '.npy'
-                
+
             print('saving ', outfn_ls)
             np.save(outfn_ls, ls)
         elif args.saved_datatype in ['h5', 'hdf5']:
