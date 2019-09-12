@@ -661,7 +661,7 @@ if __name__ == '__main__':
                         help='Show the axis labels (numbers, ticks) for the check images',
                         action='store_true')
     parser.add_argument('-prob', '--probabilities_search_string', help='Seek this file name for probabilities.',
-                        type=str, default='Probabilities.h5')
+                        type=str, default='stab_Probabilities.h5')
     parser.add_argument('-mask', '--mask_filename', help='Seek this file name for masking the probabilities.',
                         type=str, default='empty_string')
     args = parser.parse_args()
@@ -687,16 +687,17 @@ if __name__ == '__main__':
         outdir = args.outputdir
         # Run over a dataset of hdf5 files
         todo = sorted(glob.glob(indir + '*' + args.probabilities_search_string))
-        print('todo = ', todo)
+        print('todo =', todo)
         for (fn, kk) in zip(todo, range(len(todo))):
-            timepoint = fn.split('_c')[0].split('Time_')[-1]
+            timepoint = fn.split('/')[-1].split('_c')[0].split('Time_')[-1]
             outdir_k = outdir + 'morphsnakes_check_' + timepoint + '/'
 
             # Ensure that the directory exists
-            d = os.path.dirname(outdir_k)
-            if not os.path.exists(d):
-                print('run_morphsnakes.py: creating dir: ', d)
-                os.makedirs(d)
+            if args.save_callback:
+                d = os.path.dirname(outdir_k)
+                if not os.path.exists(d):
+                    print('run_morphsnakes.py: creating dir: ', d)
+                    os.makedirs(d)
 
             outfn_ply = outdir + args.outputfn_ply + timepoint + '.ply'
             olsfn = outdir
@@ -748,7 +749,7 @@ if __name__ == '__main__':
                 maskfn = args.mask_filename
                 if os.path.exists(maskfn):
                     raise RuntimeError('Mask filename does not exist! Sought file ' + maskfn)
-            elif maskfn is not 'none' and maskfn is not 'empty_string':
+            elif args.mask_filename is not 'none' and args.mask_filename is not 'empty_string':
                 print('Since . appears in mask_filename, assuming full filename with path is given for mask file...')
                 maskfn = args.mask_filename + timepoint + args.dtype
                 if os.path.exists(maskfn):
