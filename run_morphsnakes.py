@@ -714,6 +714,15 @@ if __name__ == '__main__':
                         radius_guess = args.radius_guess
                     else:
                         radius_guess = None
+
+                    if not args.center_guess == 'empty_string':
+                        if ',' in args.center_guess:
+                            center_guess = tuple(float(value) for value in args.center_guess.split(','))
+                        else:
+                            center_guess = None
+                    else:
+                        center_guess = None
+
                 else:
                     # The initial level set filename was supplied. Figure out what file type it is
                     if args.init_ls_fn[-3:] == 'npy':
@@ -770,7 +779,8 @@ if __name__ == '__main__':
                                   impath=outdir_k, plot_each=10, save_callback=args.save_callback,
                                   show_callback=args.show_callback, axis_order=args.permute_axes,
                                   plot_mesh3d=args.plot_mesh3d, mask=mask,
-                                  comparison_mesh=None, radius_guess=radius_guess, clip=clip,
+                                  comparison_mesh=None, radius_guess=radius_guess,
+                                  center_guess=center_guess, clip=clip,
                                   labelcheckax=not args.hide_check_axis_ticks)
 
             # Extract edges of level set and store them in a mesh
