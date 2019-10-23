@@ -459,7 +459,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
     iterations : int
         How many iterations to perform
     nu : float or None, optional
-
+        pressure to apply periodically. If float and < 1, applies one pressure step every 1/nu iterations
     smoothing : uint, optional
         Number of times the smoothing operator is applied per iteration.
         Reasonable values are around 1-4. Larger values lead to smoother
