@@ -1,19 +1,23 @@
 import os
+import logging
 import numpy as np
 import run_morphsnakes as rms
 from scipy import ndimage as ndi
 import matplotlib.pyplot as plt
-import morphsnakes as ms
+import morphsnakes_aux_fns as msaux
+import morphsnakes.morphsnakes as ms
+from morphsnakes.morphsnakes import _curvop
+import mcubes
 
 """For demonstrating the level set method, step by step output of meshes
 """
 
 
-def save_iter_callback(plot_each):
+def save_iter_callback(plot_each=1, outdir='', post_nu=1, post_smoothing=1):
     """
     Returns a callback than can be passed as the argument `iter_callback`
     of `morphological_geodesic_active_contour` and
-    `morphological_chan_vese` for visualizing the evolution
+    `morphological_chan_vese` for outputting meshes during the evolution
     of the levelsets. Saves a mesh for the current timepoint.
 
     Parameters
@@ -33,7 +37,7 @@ def save_iter_callback(plot_each):
     # Prepare the visual environment.
     counter = [-1]
 
-    def callback(levelset, force=False):
+    def callback(u, u_prev=None, force=False):
         """
 
         Parameters
@@ -50,16 +54,29 @@ def save_iter_callback(plot_each):
         if (counter[0] % plot_each) != 0 and not force:
             return
 
-        if ax.collections:
-            del ax.collections[0]
+        if post_nu is not None:
+            if post_nu > 0:
+                for _ in range(int(post_nu)):
+                    u = ndi.binary_dilation(u)
+            elif post_nu < 0:
+                for _ in range(int(-post_nu)):
+                    u = ndi.binary_erosion(u)
 
-        coords, triangles = mcubes.marching_cubes(levelset, 0.5)
-        # todo: save the mesh here
+        for _ in range(post_smoothing):
+            u = _curvop(u)
+
+        outfn_ply = os.path.join(outdir, 'demo_{0:06d}'.format(counter[0]) + '.ply')
+        coords, triangles = mcubes.marching_cubes(u, 0.5)
+        mm = mesh.Mesh()
+        mm.points = coords
+        mm.triangles = triangles
+        print('saving ', outfn_ply)
+        mm.save(outfn_ply)
 
     return callback
 
 
-def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=None, post_smoothing=1, post_nu=1,
+def extract_levelset_step_by_step(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=None, post_smoothing=1, post_nu=1,
                      channel=0, init_ls=None, exit_thres=5e-6,
                      center_guess=None, radius_guess=None, outdir=None, dset_name='exported_data',
                      plot_each=5, axis_order='xyzc',
@@ -110,7 +127,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
 
     # Load the image.
     print('loading ' + fn)
-    img = load_img(fn, channel, dset_name=dset_name, axis_order=axis_order)
+    img = rms.load_img(fn, channel, dset_name=dset_name, axis_order=axis_order)
 
     if clip is not None:
         img[img > clip] = clip
@@ -129,7 +146,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
         init_ls = ms.circle_level_set(img.shape, center_guess, radius_guess)
 
     # Callback for visual plotting
-    callback = save_iter_callback(plot_each=plot_each, outdir=outdir)
+    callback = save_iter_callback(plot_each=plot_each, outdir=outdir,  post_nu=post_nu, post_smoothing=post_smoothing)
 
     # Morphological Chan-Vese (or ACWE)
     ls = ms.morphological_chan_vese(img, iterations=iterations,
@@ -149,15 +166,15 @@ if __name__ == '__main__':
     Show example of finding mesh from raw image and initial guess by outputting every N steps as a (possibly 
     smoothed) mesh. 
     Note: outputdir is a directory for outputting many meshes, while input is a single input h5 file.
-    Note: -n is how often to output a mesh, in iterations. -n0 is how many iterations to perform.
+    Note: -plot_each is how often to output a mesh, in iterations. -n is how many iterations to perform.
     
 
     Example usage
     python demo_morphsnakes_steps.py \
-        -o /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48YGal4UASCAAXmCh/ \
-        -i /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48YGal4UASCAAXmCh/Time_000001_c1_Probabilities.h5 \
-        -ofn_ply mesh_visualization_ms \
-        -ofn_ls msls_visualization_ -l1 1 -l2 1 -nu 2 -smooth 1 -postsmooth 1 -postnu 2 -n 1 -n0 100 -exit 5e-6
+        -o /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4UasCAAXmCherry/201902072000_excellent/demo_morphsnakes/ \
+        -i /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4UasCAAXmCherry/201902072000_excellent/training_examples/Time_000110_c1_stab_Probabilities.h5 \
+        -ofn_ply mesh_visualization_ms -center_guess 100,175,75 -rad0 10 \
+        -ofn_ls msls_visualization -l1 1 -l2 1 -nu 0 -smooth 0.1 -postsmooth 4 -postnu 2 -n 200 -exit 5e-6
 
 
     """
@@ -210,7 +227,6 @@ if __name__ == '__main__':
     parser.add_argument('-exit', '--exit_thres', help='Number of smoothing passes per iteration', type=float,
                         default=5e-6)
     parser.add_argument('-n', '--niters', help='Number of iterations per timepoint', type=int, default=26)
-    parser.add_argument('-n0', '--niters0', help='Number of iterations for the first timepoint', type=int, default=76)
     parser.add_argument('-rad0', '--radius_guess',
                         help='If positive, specifies the radius of the initial implicit level set guess',
                         type=float, default=-1)
@@ -246,27 +262,13 @@ if __name__ == '__main__':
     """Run morphological snakes on a single image to create implicit surface. Output a mesh every so often, which may
     be smoothed at each output step for visualization purposes.
     Example usage: 
-
-    python run_morphsnakes.py \
-        -o /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4-UAShistRFP/201901021550_folded_2part/morphsnakes_testing/test_out.ply \
-        -ols /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4-UAShistRFP/201901021550_folded_2part/morphsnakes_testing/test_out.npy \
-        -i /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4-UAShistRFP/201901021550_folded_2part/Time_000001_c1_Probabilities.h5 \
-        -rootdir /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4-UAShistRFP/201901021550_folded_2part/
-
-     python run_morphsnakes.py -i /Users/npmitchell/Dropbox/Soft_Matter/UCSB/qbio-vip8_shared/tolls/TP0_Ch3_Ill0_Ang0,45,90,135,180,225,270,315.h5
-        -o /Users/npmitchell/Dropbox/Soft_Matter/UCSB/qbio-vip8_shared/tolls/msls_output_nu0p10_s1_pn4_ps4_l1_l1/
-        -prenu 0 -presmooth 0 -ofn_ply mesh_apical_ms_000000.ply -ofn_ls msls_apical_000000.npy -l1 1 -nu 0.1
-        -postnu -2 -channel -1 -smooth 1 -postsmooth 4 -exit 0.000001000 -dset_name inputData -rad0 30 -n 35 -save
-        -dtype h5 -init_ls /Users/npmitchell/Dropbox/Soft_Matter/UCSB/qbio-vip8_shared/tolls/Time_000000_c3_levelset.h5 -l2 2 -clip 500
     """
     fn = args.input
     outputdir = os.path.join(args.outputdir, '')
     outfn_ply = outputdir + args.outputfn_ply
     if outfn_ply[-4:] != '.ply':
         outfn_ply += '.ply'
-    outfn_ls = outputdir + args.outputfn_ls
-
-    imdir = outputdir + 'morphsnakes_check/'
+    outfn_ls = os.path.join(outputdir, args.outputfn_ls)
 
     if args.init_ls_fn == 'empty_string':
         load_init = False
@@ -326,10 +328,9 @@ if __name__ == '__main__':
                                       smoothing=args.smoothing, lambda1=args.lambda1, lambda2=args.lambda2,
                                       nu=args.nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
                                       exit_thres=args.exit_thres, dset_name=args.dset_name,
-                                      impath=imdir, plot_each=10, save_callback=args.save_callback,
-                                      show_callback=args.show_callback, axis_order=args.permute_axes,
-                                      comparison_mesh=None, radius_guess=radius_guess, center_guess=center_guess,
-                                      plot_mesh3d=args.plot_mesh3d, clip=clip, labelcheckax=not args.hide_check_axis_ticks)
+                                      outdir=outputdir, plot_each=1, axis_order=args.permute_axes,
+                                      radius_guess=radius_guess, center_guess=center_guess,
+                                      clip=clip)
     print('Extracted level set')
 
     # Extract edges of level set
@@ -351,7 +352,7 @@ if __name__ == '__main__':
     elif args.saved_datatype in ['h5', 'hdf5']:
         # Save ls for this timepoint as an hdf5 file
         if outfn_ls[-3:] != '.h5' and outfn_ls[-5:] != '.hdf5':
-            outfn_ls += outfn_ls + '.h5'
+            outfn_ls += '.h5'
 
         print('saving ', outfn_ls)
         msaux.save_ls_as_h5(outfn_ls, ls)

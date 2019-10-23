@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
 import morphsnakes as ms
-from morphsnakes import _curvop
+from morphsnakes.morphsnakes import _curvop
 import copy
 import mcubes
 import morphsnakes_aux_fns as msaux
@@ -1007,7 +1007,7 @@ if __name__ == '__main__':
         elif args.saved_datatype in ['h5', 'hdf5']:
             # Save ls for this timepoint as an hdf5 file
             if outfn_ls[-3:] != '.h5' and outfn_ls[-5:] != '.hdf5':
-                outfn_ls += outfn_ls + '.h5'
+                outfn_ls += '.h5'
 
             print('saving ', outfn_ls)
             msaux.save_ls_as_h5(outfn_ls, ls)
