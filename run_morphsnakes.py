@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
 import morphsnakes as ms
-from morphsnakes.morphsnakes import _curvop
+from morphsnakes import _curvop
 import copy
 import mcubes
 import morphsnakes_aux_fns as msaux
@@ -428,19 +428,6 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
             elif axis_order == 'yxzc':
                 img = hfn[dset_name][:, :, :, channel]
                 img = np.swapaxes(img, 1, 2)
-            elif axis_order == 'zyxc':
-                img = hfn[dset_name][:, :, :, channel]
-                img = np.swapaxes(img, 1, 3)
-            elif axis_order == 'cxyz':
-                img = hfn[dset_name][channel, :, :, :]
-            elif axis_order == 'cyxz':
-                img = hfn[dset_name][channel, :, :, :]
-                img = np.swapaxes(img, 1, 2)
-            elif axis_order == 'czyx':
-                img = hfn[dset_name][channel, :, :, :]
-                img = np.swapaxes(img, 1, 3)
-            else:
-                raise(RuntimeError, "Did not recognize axis order")
         else:
             img = np.array(hfn[dset_name]) 
             img = img.astype(float)
@@ -462,7 +449,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
                      channel=0, init_ls=None, show_callback=False, save_callback=False, exit_thres=5e-6,
                      center_guess=None, radius_guess=None, impath=None, dset_name='exported_data',
                      plot_each=5, comparison_mesh=None, axis_order='xyzc', plot_diff=True,
-                     plot_mesh3d=False, clip=None, labelcheckax=False, mask=None):
+                     plot_mesh3d=False, clip=None, clip_floor=None, labelcheckax=False, mask=None):
     """Extract the level set from a 2d or 3d image.
 
     Parameters
@@ -500,7 +487,9 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
     comparison_mesh : mesh.Mesh class instance or None
         If supplied, use this mesh (with attrs mesh.points and mesh.triangles) to compare to the morphsnakes output
     clip : float or None
-        If not none, clip all values above this in the image on which to run morphsnakes
+        If not None, clip all values above this in the image on which to run morphsnakes
+    clip_floor : float or None
+        If not None, clip all values below this in the image on which to run morphsnakes
 
     Returns
     -------
@@ -515,6 +504,10 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
 
     if clip is not None:
         img[img > clip] = clip
+
+    if clip_floor is not None:
+        img[img < clip_floor] = clip_floor
+        img -= clip_floor
 
     if mask is not None:
         img *= mask
@@ -609,6 +602,9 @@ if __name__ == '__main__':
                         'If dataset == True, then this is dir, else is filename.',
                         type=str, default='./')
     parser.add_argument('-clip', '--clip', help='Maximum intensity value for the image before evolution, if positive',
+                        type=float, default=-1)
+    parser.add_argument('-clip_floor', '--clip_floor',
+                        help='Minimum intensity value for the image before evolution, if positive',
                         type=float, default=-1)
     parser.add_argument('-channel', '--channel', help='Which channel of the loaded data/image to use',
                         type=int, default=0)
@@ -735,7 +731,6 @@ if __name__ == '__main__':
                             center_guess = None
                     else:
                         center_guess = None
-
                 else:
                     # The initial level set filename was supplied. Figure out what file type it is
                     if args.init_ls_fn[-3:] == 'npy':
@@ -747,6 +742,8 @@ if __name__ == '__main__':
 
                     # Since there is an initial set, don't use the default spherical guess
                     radius_guess = None
+                    center_guess = None
+
                     # Erode the init_ls several times to avoid spilling out of ROI on next round
                     for _ in range(abs(args.init_ls_nu)):
                         if args.init_ls_nu > 0:
@@ -764,6 +761,12 @@ if __name__ == '__main__':
                 clip = args.clip
             else:
                 clip = None
+
+            # Clip the image if the parameter clip_floor was given as positive
+            if args.clip_floor > 0:
+                clip_floor = args.clip_floor
+            else:
+                clip_floor = None
 
             # mask the data if mask filename is given
             if '.' in args.mask_filename:
@@ -793,7 +796,7 @@ if __name__ == '__main__':
                                   show_callback=args.show_callback, axis_order=args.permute_axes,
                                   plot_mesh3d=args.plot_mesh3d, mask=mask,
                                   comparison_mesh=None, radius_guess=radius_guess,
-                                  center_guess=center_guess, clip=clip,
+                                  center_guess=center_guess, clip=clip, clip_floor=clip_floor,
                                   labelcheckax=not args.hide_check_axis_ticks)
 
             # Extract edges of level set and store them in a mesh
@@ -991,6 +994,12 @@ if __name__ == '__main__':
         else:
             clip = None
 
+        # Clip the image if the parameter clip_floor was given as positive
+        if args.clip_floor > 0:
+            clip_floor = args.clip_floor
+        else:
+            clip_floor = None
+
         ls = extract_levelset(fn, iterations=args.niters, channel=channel, init_ls=init_ls,
                               smoothing=args.smoothing, lambda1=args.lambda1, lambda2=args.lambda2,
                               nu=args.nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
@@ -998,13 +1007,14 @@ if __name__ == '__main__':
                               impath=imdir, plot_each=10, save_callback=args.save_callback,
                               show_callback=args.show_callback, axis_order=args.permute_axes,
                               comparison_mesh=None, radius_guess=radius_guess, center_guess=center_guess,
-                              plot_mesh3d=args.plot_mesh3d, clip=clip, labelcheckax=not args.hide_check_axis_ticks)
+                              plot_mesh3d=args.plot_mesh3d, clip=clip, clip_floor=clip_floor,
+                              labelcheckax=not args.hide_check_axis_ticks)
         print('Extracted level set')
 
         # Extract edges of level set
         coords, triangles = mcubes.marching_cubes(ls, 0.5)
         mm = mesh.Mesh()
-        mm.points = coords
+        mm.points = coords * float(args.subsampling_factor)
         mm.triangles = triangles
         print('saving ', outfn_ply)
         mm.save(outfn_ply)
@@ -1020,7 +1030,7 @@ if __name__ == '__main__':
         elif args.saved_datatype in ['h5', 'hdf5']:
             # Save ls for this timepoint as an hdf5 file
             if outfn_ls[-3:] != '.h5' and outfn_ls[-5:] != '.hdf5':
-                outfn_ls += '.h5'
+                outfn_ls += outfn_ls + '.h5'
 
             print('saving ', outfn_ls)
             msaux.save_ls_as_h5(outfn_ls, ls)
