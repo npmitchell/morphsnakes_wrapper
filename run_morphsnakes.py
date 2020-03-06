@@ -428,6 +428,19 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
             elif axis_order == 'yxzc':
                 img = hfn[dset_name][:, :, :, channel]
                 img = np.swapaxes(img, 1, 2)
+            elif axis_order == 'zyxc':
+                img = hfn[dset_name][:, :, :, channel]
+                img = np.swapaxes(img, 1, 3)
+            elif axis_order == 'cxyz':
+                img = hfn[dset_name][channel, :, :, :]
+            elif axis_order == 'cyxz':
+                img = hfn[dset_name][channel, :, :, :]
+                img = np.swapaxes(img, 1, 2)
+            elif axis_order == 'czyx':
+                img = hfn[dset_name][channel, :, :, :]
+                img = np.swapaxes(img, 1, 3)
+            else:
+                raise(RuntimeError, "Did not recognize axis order")
         else:
             img = np.array(hfn[dset_name]) 
             img = img.astype(float)
