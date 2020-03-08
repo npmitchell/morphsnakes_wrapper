@@ -422,29 +422,49 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
 
         # ilastik internally swaps axes. 1: class, 2: y, 3: x 4 : z
         # so flip the axes to select channel, y, x, z
-        if channel is not None:
-            if axis_order == 'xyzc':
-                img = hfn[dset_name][:, :, :, channel]
-            elif axis_order == 'yxzc':
-                img = hfn[dset_name][:, :, :, channel]
-                img = np.swapaxes(img, 1, 2)
-            elif axis_order == 'zyxc':
-                img = hfn[dset_name][:, :, :, channel]
-                img = np.swapaxes(img, 1, 3)
-            elif axis_order == 'cxyz':
-                img = hfn[dset_name][channel, :, :, :]
-            elif axis_order == 'cyxz':
-                img = hfn[dset_name][channel, :, :, :]
-                img = np.swapaxes(img, 1, 2)
-            elif axis_order == 'czyx':
-                img = hfn[dset_name][channel, :, :, :]
-                img = np.swapaxes(img, 1, 3)
-            else:
-                raise (RuntimeError, "Did not recognize axis order")
+        if channel is None and len(np.shape(hfn[dset_name])) == 4:
+            print('4D data but no channel specified, assuming channel is 1...')
+            channel = 1
 
+        if channel is not None:
+            if len(axis_order) == 3:
+                img = hfn[dset_name][:, :, :]
+            elif axis_order[3] == 'c':
+                axis_order = axis_order[0:3]
+                img = hfn[dset_name][:, :, :, channel]
+            elif axis_order[0] == 'c':
+                axis_order = axis_order[1:]
+                img = hfn[dset_name][channel, :, :, :]
+            elif axis_order[1] == 'c':
+                okax = np.array([0, 2, 3])
+                axis_order = axis_order[okax]
+                img = hfn[dset_name][:, channel, :, :]
+            elif axis_order[2] == 'c':
+                okax = np.array([0, 1, 3])
+                axis_order = axis_order[okax]
+                img = hfn[dset_name][:, :, channel, :]
+            else:
+                raise RuntimeError("Cannot parse this axis order")
         else:
             img = np.array(hfn[dset_name]) 
             img = img.astype(float)
+
+        if axis_order == 'xyz':
+            pass
+        elif axis_order == 'xzy':
+            img = np.swapaxes(img, 1, 2)
+        elif axis_order == 'yzx':
+            img = np.swapaxes(img, 0, 1)
+            img = np.swapaxes(img, 1, 2)
+        elif axis_order == 'yxz':
+            img = np.swapaxes(img, 0, 1)
+        elif axis_order == 'zyx':
+            img = np.swapaxes(img, 0, 2)
+        elif axis_order == 'zxy':
+            img = np.swapaxes(img, 0, 2)
+            img = np.swapaxes(img, 1, 2)
+        else:
+            raise RuntimeError("Did not recognize axis order:" + axis_order)
 
         # plt.hist(img.ravel())
         # print(np.max(img.ravel()))
@@ -687,6 +707,9 @@ if __name__ == '__main__':
                         type=str, default='stab_Probabilities.h5')
     parser.add_argument('-mask', '--mask_filename', help='Seek this file name for masking the probabilities.',
                         type=str, default='empty_string')
+    parser.add_argument('-include_boundary_faces', '--include_boundary_faces',
+                        help='Do not remove boundary faces from the mesh representation of level set',
+                        action='store_true')
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG)
 
@@ -815,7 +838,17 @@ if __name__ == '__main__':
 
             # Extract edges of level set and store them in a mesh
             mm = mesh.Mesh()
-            coords, triangles = mcubes.marching_cubes(ls, 0.5)
+
+            # If desired, avoid chopping the boundaries by converting all boundary pixels to zero
+            if args.include_boundary_faces:
+                # expand ls into padded zeros
+                ls2 = np.zeros(np.shape(ls) + np.array([2, 2, 2]))
+                ls2[1:-1, 1:-1, 1:-1] = ls
+                coords, triangles = mcubes.marching_cubes(ls2, 0.5)
+                coords -= np.array([1, 1, 1])
+            else:
+                coords, triangles = mcubes.marching_cubes(ls, 0.5)
+
             mm.points = coords * float(args.subsampling_factor)
             mm.triangles = triangles
             print('saving ', outfn_ply)
@@ -1026,8 +1059,17 @@ if __name__ == '__main__':
         print('Extracted level set')
 
         # Extract edges of level set
-        coords, triangles = mcubes.marching_cubes(ls, 0.5)
         mm = mesh.Mesh()
+        # If desired, avoid chopping the boundaries by converting all boundary pixels to zero
+        if args.include_boundary_faces:
+            # expand ls into padded zeros
+            ls2 = np.zeros(np.shape(ls) + np.array([2, 2, 2]))
+            ls2[1:-1, 1:-1, 1:-1] = ls
+            coords, triangles = mcubes.marching_cubes(ls2, 0.5)
+            coords -= np.array([1, 1, 1])
+        else:
+            coords, triangles = mcubes.marching_cubes(ls, 0.5)
+
         mm.points = coords * float(args.subsampling_factor)
         mm.triangles = triangles
         print('saving ', outfn_ply)
