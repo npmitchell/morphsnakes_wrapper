@@ -398,16 +398,21 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
 
     Parameters
     ----------
-    fn
-    channel
-    dset_name
+    fn : str
+        the filename to load as an image
+    channel : int
+        Channel number to use in Chan-Vese from the h5 file
+    dset_name : str
+        The name of the dataset within the h5 file
+    axis_order : str ('xyzc', 'xyz', or permutations of these characters)
+        axis_order is the order in which they are STORED. This function resorts the axes to process the image as XYZ
 
     Returns
     -------
     img : numpy float array
         intensity values in 2d or 3d grid (dataset)
     """
-    print('loading ' + fn)
+    print('loading ' + fn + ' with axis order ' + axis_order)
     if fn[-3:] == 'npy':
         if channel is not None:
             img = np.load(fn)[:, :, :, channel]
@@ -426,6 +431,7 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
             print('4D data but no channel specified, assuming channel is 1...')
             channel = 1
 
+        print('size of data is ', np.shape(hfn[dset_name]))
         if channel is not None:
             if len(axis_order) == 3:
                 img = hfn[dset_name][:, :, :]
@@ -446,23 +452,34 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
             else:
                 raise RuntimeError("Cannot parse this axis order")
         else:
-            img = np.array(hfn[dset_name]) 
+            print('Converting h5 data into a numpy array')
+            img = np.array(hfn[dset_name])
+            print('Converting to float...')
             img = img.astype(float)
 
+        # Now sort the spatial dimensions
+        # Note: axis_order is the order in which they are STORED, but resort to process as XYZ
         if axis_order == 'xyz':
             pass
         elif axis_order == 'xzy':
             img = np.swapaxes(img, 1, 2)
+            print(axis_order + '-> xyz', np.shape(img))
         elif axis_order == 'yzx':
+            # make zyx, then make xyz
             img = np.swapaxes(img, 0, 1)
-            img = np.swapaxes(img, 1, 2)
+            img = np.swapaxes(img, 0, 2)
+            print(axis_order + '-> xyz', np.shape(img))
         elif axis_order == 'yxz':
             img = np.swapaxes(img, 0, 1)
+            print(axis_order + '-> xyz', np.shape(img))
         elif axis_order == 'zyx':
             img = np.swapaxes(img, 0, 2)
+            print(axis_order + '-> xyz', np.shape(img))
         elif axis_order == 'zxy':
+            # make yxz, then make xyz
             img = np.swapaxes(img, 0, 2)
-            img = np.swapaxes(img, 1, 2)
+            img = np.swapaxes(img, 0, 1)
+            print(axis_order + '-> xyz', np.shape(img))
         else:
             raise RuntimeError("Did not recognize axis order:" + axis_order)
 
@@ -470,8 +487,10 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
         # print(np.max(img.ravel()))
         # plt.savefig('/Users/npmitchell/Desktop/test.png')
         # raise RuntimeError('Exiting now')
+        print('Constructing deep copy')
         img = copy.deepcopy(img)
         # file_is_open = True
+        print('Closing the h5 file')
         hfn.close()
     else:
         raise RuntimeError('Could not find filename for img: ' + fn)
@@ -557,12 +576,14 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
         init_ls = ms.circle_level_set(img.shape, center_guess, radius_guess)
 
     # Callback for visual plotting
+    print('Defining visual callback for 3d visualization')
     callback = visual_callback_3d(show=show_callback, save=save_callback,
                                   plot_each=plot_each, impath=impath, comparison_mesh=comparison_mesh,
                                   img=img, plot_diff=plot_diff,
                                   plot_mesh3d=plot_mesh3d, labelcheckax=labelcheckax)
 
     # Morphological Chan-Vese (or ACWE)
+    print('Running morphological Chan-Vese (ACWE)')
     ls = ms.morphological_chan_vese(img, iterations=iterations,
                                     init_level_set=init_ls,
                                     smoothing=smoothing, lambda1=lambda1, lambda2=lambda2, nu=nu,
@@ -698,6 +719,8 @@ if __name__ == '__main__':
                         type=str, default='exported_data')
     parser.add_argument('-permute', '--permute_axes', help='Axes order of training data (xyzc, cxyz, cyxz, etc)',
                         type=str, default='xyzc')
+    parser.add_argument('-permute_mesh', '--permute_mesh', help='Axes order of output mesh (xyz, yxz, zyx, etc)',
+                        type=str, default='xyz')
     parser.add_argument('-invert', '--invert_probabilities', help='Axes order of training data (xyzc, cxyz, cyxz, etc)',
                         action='store_true')
     parser.add_argument('-hide_ticks', '--hide_check_axis_ticks',
@@ -709,6 +732,9 @@ if __name__ == '__main__':
                         type=str, default='empty_string')
     parser.add_argument('-include_boundary_faces', '--include_boundary_faces',
                         help='Do not remove boundary faces from the mesh representation of level set',
+                        action='store_true')
+    parser.add_argument('-adjust_for_MATLAB_indexing', '--adjust_for_MATLAB_indexing',
+                        help='Adjust the output mesh coordinates to reflect 1-indexing instead of zero-indexing',
                         action='store_true')
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG)
@@ -729,11 +755,22 @@ if __name__ == '__main__':
         -init_ls /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4UasCAAXmCherry/48Ygal4UasCAAXmCherry_20190207200_excellent/cells_h5/msls_apical_init.npy
         
         """
+        print('Running in dataset mode.')
         indir = args.input
         outdir = args.outputdir
         # Run over a dataset of hdf5 files
+        print('Seeking files ', indir + '*' + args.probabilities_search_string)
         todo = sorted(glob.glob(indir + '*' + args.probabilities_search_string))
-        print('todo =', todo)
+        if len(todo) == 0:
+            print('None found > seeking files ', indir + '*' + args.probabilities_search_string + args.saved_datatype)
+            todo = sorted(glob.glob(indir + '*' + args.probabilities_search_string + args.saved_datatype))
+            if not todo:
+                print('None found > seeking files ', indir + '*' + args.probabilities_search_string + '.' + args.saved_datatype)
+                todo = sorted(glob.glob(indir + '*' + args.probabilities_search_string + '.' + args.saved_datatype))
+
+        for (name, dmyk) in zip(todo, range(len(todo))):
+            print('todo[' + str(dmyk) + '] = ' + name)
+
         for (fn, kk) in zip(todo, range(len(todo))):
             timepoint = fn.split('/')[-1].split('_c')[0].split('Time_')[-1]
             outdir_k = outdir + 'morphsnakes_check_' + timepoint + '/'
@@ -745,6 +782,7 @@ if __name__ == '__main__':
                     print('run_morphsnakes.py: creating dir: ', d)
                     os.makedirs(d)
 
+            print(args.outputfn_ply)
             outfn_ply = outdir + args.outputfn_ply + timepoint + '.ply'
             olsfn = outdir
 
@@ -773,15 +811,17 @@ if __name__ == '__main__':
                     if args.init_ls_fn[-3:] == 'npy':
                         init_ls = np.load(args.init_ls_fn)
                     elif args.init_ls_fn[-3:] in ['.h5', 'df5']:
+                        print('Extracting init_ls from ', args.init_ls_fn)
                         f = h5py.File(args.init_ls_fn, 'r')
                         init_ls = f['implicit_levelset'][:]
                         f.close()
+                        print('Extracted init_ls with shape ', np.shape(init_ls))
 
                     # Since there is an initial set, don't use the default spherical guess
                     radius_guess = None
                     center_guess = None
 
-                    # Erode the init_ls several times to avoid spilling out of ROI on next round
+                    # Erode/Dilate the init_ls to avoid spilling out of ROI on next round or avoid collapse, etc
                     for _ in range(abs(args.init_ls_nu)):
                         if args.init_ls_nu > 0:
                             init_ls = ndi.binary_dilation(init_ls)
@@ -849,10 +889,45 @@ if __name__ == '__main__':
             else:
                 coords, triangles = mcubes.marching_cubes(ls, 0.5)
 
+            # Note that the mesh is such that the corner of the corner voxel would be at -0.5, -0.5, -0.5
+            # EXAMPLE TO SHOW THIS:
+            # sz = 10
+            # X, Y, Z = np.mgrid[:sz, :sz, :sz]
+            # ww = sz * 0.5
+            # u = np.zeros_like(X) # (X - ww) ** 2 + (Y - ww) ** 2 + (Z - ww) ** 2 - (ww*0.5) ** 2
+            # u[np.where(X > 5)] = 1
+            # vtx, tri = mcubes.marching_cubes(u, 0)
+
+            # Swap axes of coords if desired
+            if args.permute_mesh != 'xyz':
+                if args.permute_mesh == 'xzy':
+                    coords = np.swapaxes(coords, 1, 2)
+                    # preserve triangle orientation
+                    triangles = triangles[:, [0, 2, 1]]
+                elif args.permute_mesh == 'yxz':
+                    coords = np.swapaxes(coords, 0, 1)
+                    # preserve triangle orientation
+                    triangles = triangles[:, [0, 2, 1]]
+                elif args.permute_mesh == 'zxy':
+                    coords = np.swapaxes(coords, 0, 1)
+                    coords = np.swapaxes(coords, 0, 2)
+                elif args.permute_mesh == 'zyx':
+                    coords = np.swapaxes(coords, 0, 2)
+                    # preserve triangle orientation
+                    triangles = triangles[:, [0, 2, 1]]
+                elif args.permute_mesh == 'yzx':
+                    coords = np.swapaxes(coords, 0, 2)
+                    coords = np.swapaxes(coords, 0, 1)
+                else:
+                    raise RuntimeError('Have not coded for this permute_mesh option. Do so here.')
+
             mm.points = coords * float(args.subsampling_factor)
             mm.triangles = triangles
             print('saving ', outfn_ply)
             mm.save(outfn_ply)
+
+            if args.adjust_for_MATLAB_indexing:
+                coords += 0.5 * np.ones([1, 3])
 
             # Save the level set data as a numpy or h5 file
             if args.saved_datatype == 'npy':
@@ -929,6 +1004,9 @@ if __name__ == '__main__':
 
                 # Extract edges of level set
                 coords, triangles = mcubes.marching_cubes(ls, 0.5)
+                if args.adjust_for_MATLAB_indexing:
+                    coords += 0.5 * np.ones([1, 3])
+
                 mm = mesh.Mesh()
                 mm.points = coords
                 mm.triangles = triangles
@@ -1070,10 +1148,36 @@ if __name__ == '__main__':
         else:
             coords, triangles = mcubes.marching_cubes(ls, 0.5)
 
+        # Swap axes of coords if desired
+        if args.permute_mesh != 'xyz':
+            if args.permute_mesh == 'xzy':
+                coords = np.swapaxes(coords, 1, 2)
+                # preserve triangle orientation
+                triangles = triangles[:, [0, 2, 1]]
+            elif args.permute_mesh == 'yxz':
+                coords = np.swapaxes(coords, 0, 1)
+                # preserve triangle orientation
+                triangles = triangles[:, [0, 2, 1]]
+            elif args.permute_mesh == 'zxy':
+                coords = np.swapaxes(coords, 0, 1)
+                coords = np.swapaxes(coords, 0, 2)
+            elif args.permute_mesh == 'zyx':
+                coords = np.swapaxes(coords, 0, 2)
+                # preserve triangle orientation
+                triangles = triangles[:, [0, 2, 1]]
+            elif args.permute_mesh == 'yzx':
+                coords = np.swapaxes(coords, 0, 2)
+                coords = np.swapaxes(coords, 0, 1)
+            else:
+                raise RuntimeError('Have not coded for this permute_mesh option. Do so here.')
+
         mm.points = coords * float(args.subsampling_factor)
         mm.triangles = triangles
         print('saving ', outfn_ply)
         mm.save(outfn_ply)
+
+        if args.adjust_for_MATLAB_indexing:
+            coords += 0.5 * np.ones([1, 3])
 
         # Save ls for this timepoint as npy or hdf5 file
         if args.saved_datatype == 'npy':
