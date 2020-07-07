@@ -502,7 +502,8 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
                      channel=0, init_ls=None, show_callback=False, save_callback=False, exit_thres=5e-6,
                      center_guess=None, radius_guess=None, impath=None, dset_name='exported_data',
                      plot_each=5, comparison_mesh=None, axis_order='xyzc', plot_diff=True,
-                     plot_mesh3d=False, clip=None, clip_floor=None, labelcheckax=False, mask=None):
+                     plot_mesh3d=False, clip=None, clip_floor=None, labelcheckax=False, mask=None,
+                     volumetric=False, target_volume=1000, nu_max=5):
     """Extract the level set from a 2d or 3d image.
 
     Parameters
@@ -584,11 +585,19 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
 
     # Morphological Chan-Vese (or ACWE)
     print('Running morphological Chan-Vese (ACWE)')
-    ls = ms.morphological_chan_vese(img, iterations=iterations,
-                                    init_level_set=init_ls,
-                                    smoothing=smoothing, lambda1=lambda1, lambda2=lambda2, nu=nu,
-                                    post_smoothing=post_smoothing, post_nu=post_nu,
-                                    iter_callback=callback, exit_thres=exit_thres)
+    if volumetric:
+        ls = ms.volumetric_morphological_chan_vese(img, iterations=iterations,
+                                                   init_level_set=init_ls,
+                                                   smoothing=smoothing, lambda1=lambda1, lambda2=lambda2, nu=nu,
+                                                   post_smoothing=post_smoothing, post_nu=post_nu,
+                                                   iter_callback=callback, exit_thres=exit_thres,
+                                                   volume0=target_volume, nu_max=nu_max)
+    else:
+        ls = ms.morphological_chan_vese(img, iterations=iterations,
+                                        init_level_set=init_ls,
+                                        smoothing=smoothing, lambda1=lambda1, lambda2=lambda2, nu=nu,
+                                        post_smoothing=post_smoothing, post_nu=post_nu,
+                                        iter_callback=callback, exit_thres=exit_thres)
     return ls
 
 
@@ -644,6 +653,17 @@ if __name__ == '__main__':
         -i /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4-UAShistRFP/201901021550_folded_2part/ \
         -ofn_ply mesh_apical_ms_ \
         -ofn_ls msls_apical_ -l1 1 -l2 1 -nu 2 -smooth 1 -postsmooth 5 -postnu 5 -n 26 -n0 76 -exit 5e-6
+        
+        
+    python /mnt/data/code/morphsnakes_wrapper/morphsnakes_wrapper/run_morphsnakes.py -i \
+        Time_000104_c1_stab_Probabilities.h5 \
+        -init_ls msls_apical_stab_000103.h5 -o \
+         /mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/msls_output/ \
+         -prenu -4 -presmooth 1 -ofn_ply mesh_apical_ms_stab_000104.ply -ofn_ls \
+         msls_apical_stab_000104.h5 -l1 1 -l2 1 -nu 0.1 -postnu 2 -channel 1 -smooth 0.3 -postsmooth 4 \
+          -exit 0.000100000 -channel 0 -dtype h5 -permute zyxc -ss 4 -include_boundary_faces -save \
+          -center_guess 200,75,75 -volumetric -rad0 40 -n 15
+
         
     """
     parser = argparse.ArgumentParser(description='Compute level set using Morphological Chan-Vese ACWE.')
@@ -730,6 +750,12 @@ if __name__ == '__main__':
                         type=str, default='stab_Probabilities.h5')
     parser.add_argument('-mask', '--mask_filename', help='Seek this file name for masking the probabilities.',
                         type=str, default='empty_string')
+    parser.add_argument('-volumetric', '--volumetric', help='Use volumetric pressure in Chan-Vese (Energy~p*V).',
+                        action='store_true')
+    parser.add_argument('-volume0', '--target_volume', help='Target volume for pressure in Chan-Vese (Energy~p*V).',
+                        type=float, default=1000.0)
+    parser.add_argument('-nu_max', '--nu_max', help='Maximum pressure steps per iteration in Chan-Vese (Energy~p*V).',
+                        type=int, default=5)
     parser.add_argument('-include_boundary_faces', '--include_boundary_faces',
                         help='Do not remove boundary faces from the mesh representation of level set',
                         action='store_true')
@@ -806,6 +832,9 @@ if __name__ == '__main__':
                             center_guess = None
                     else:
                         center_guess = None
+
+                    # Target volume is supplied in args
+                    target_volume = args.target_volume
                 else:
                     # The initial level set filename was supplied. Figure out what file type it is
                     if args.init_ls_fn[-3:] == 'npy':
@@ -816,6 +845,9 @@ if __name__ == '__main__':
                         init_ls = f['implicit_levelset'][:]
                         f.close()
                         print('Extracted init_ls with shape ', np.shape(init_ls))
+
+                    # Target volume is raw volume from loaded levelset
+                    target_volume = sum(init_ls.ravel())
 
                     # Since there is an initial set, don't use the default spherical guess
                     radius_guess = None
@@ -832,6 +864,9 @@ if __name__ == '__main__':
                         init_ls = _curvop(init_ls)
             else:
                 niters = args.niters
+
+            # Declare how many iterations to do before exit
+            print('niters = ', niters)
 
             # Clip the image if the parameter clip was given as positive
             if args.clip > 0:
@@ -864,6 +899,10 @@ if __name__ == '__main__':
                 # load the mask
                 mask = load_data(maskfn)
 
+            # prepare for volumetric pressure
+            do_volumetric = args.volumetric
+            print('target_volume = ', target_volume)
+
             # Perform the levelset calculation
             ls = extract_levelset(fn, iterations=niters, channel=args.channel, init_ls=init_ls,
                                   smoothing=args.smoothing, lambda1=args.lambda1, lambda2=args.lambda2,
@@ -874,7 +913,8 @@ if __name__ == '__main__':
                                   plot_mesh3d=args.plot_mesh3d, mask=mask,
                                   comparison_mesh=None, radius_guess=radius_guess,
                                   center_guess=center_guess, clip=clip, clip_floor=clip_floor,
-                                  labelcheckax=not args.hide_check_axis_ticks)
+                                  labelcheckax=not args.hide_check_axis_ticks, volumetric=do_volumetric,
+                                  target_volume=target_volume, nu_max=args.nu_max)
 
             # Extract edges of level set and store them in a mesh
             mm = mesh.Mesh()
@@ -946,6 +986,9 @@ if __name__ == '__main__':
             # Make current level set into next iteration's guess
             init_ls = ls
 
+            # Next iteration's target volume is raw output volume from extracted levelset
+            target_volume = sum(init_ls.ravel())
+
             # Erode the init_ls several times to avoid spilling out of ROI on next round
             for _ in range(abs(args.init_ls_nu)):
                 if args.init_ls_nu > 0:
@@ -994,13 +1037,17 @@ if __name__ == '__main__':
                 ofn_ply = outputdir + ofn_ply_base + name + '.ply'
                 ofn_ls = outputdir + ofn_ls_base + name
 
+                # prepare for volumetric: target volume
+                target_volume = sum(init_ls.ravel())
+
                 ls = extract_levelset(fn, iterations=args.niters, channel=args.channel, init_ls=init_ls,
                                       smoothing=smooth, lambda1=args.lambda1, lambda2=args.lambda2,
                                       nu=nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
                                       exit_thres=args.exit_thres,
                                       impath=imdir, plot_each=10, save_callback=args.save_callback,
                                       show_callback=args.show_callback,
-                                      comparison_mesh=None, plot_diff=True)
+                                      comparison_mesh=None, plot_diff=True, volumetric=args.volumetric,
+                                      target_volume=args.target_volume, nu_max=args.nu_max)
 
                 # Extract edges of level set
                 coords, triangles = mcubes.marching_cubes(ls, 0.5)
@@ -1055,6 +1102,22 @@ if __name__ == '__main__':
             -prenu 0 -presmooth 0 -ofn_ply mesh_apical_ms_000000.ply -ofn_ls msls_apical_000000.npy -l1 1 -nu 0.1
             -postnu -2 -channel -1 -smooth 1 -postsmooth 4 -exit 0.000001000 -dset_name inputData -rad0 30 -n 35 -save
             -dtype h5 -init_ls /Users/npmitchell/Dropbox/Soft_Matter/UCSB/qbio-vip8_shared/tolls/Time_000000_c3_levelset.h5 -l2 2 -clip 500
+        
+        for (( num=110; num<=111; num++ ))
+        do
+            datDir="/mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/"
+            mslsDir="${datDir}msls_output/"
+            idx=$(printf "%03d" $(( num )))
+            prev=$(printf "%03d" $(( num-1 )))
+            python /mnt/data/code/morphsnakes_wrapper/morphsnakes_wrapper/run_morphsnakes.py -i \
+                ${datDir}Time_000${idx}_c1_stab_Probabilities.h5 \
+                -init_ls ${mslsDir}msls_apical_stab_000${prev}.h5 \
+                -o $mslsDir \
+                -prenu -4 -presmooth 1 -ofn_ply mesh_apical_ms_stab_000${idx}.ply -ofn_ls \
+                msls_apical_stab_000${idx}.h5 -l1 1 -l2 1 -nu 4 -postnu 2 -channel 1 -smooth 0.3 -postsmooth 3 \
+                -exit 0.000100000 -channel 0 -dtype h5 -permute zyxc -ss 4 -include_boundary_faces -save \
+                -center_guess 200,75,75 -volumetric -rad0 40 -n 15
+        done
         """
         fn = args.input
         outputdir = os.path.join(args.outputdir, '')
@@ -1072,6 +1135,7 @@ if __name__ == '__main__':
         else:
             load_init = False
 
+        print(args.init_ls_fn)
         if not load_init:
             init_ls = None
 
@@ -1125,6 +1189,9 @@ if __name__ == '__main__':
         else:
             clip_floor = None
 
+        # prepare for volumetric pressure: target volume
+        target_volume = sum(init_ls.ravel())
+
         ls = extract_levelset(fn, iterations=args.niters, channel=channel, init_ls=init_ls,
                               smoothing=args.smoothing, lambda1=args.lambda1, lambda2=args.lambda2,
                               nu=args.nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
@@ -1133,7 +1200,8 @@ if __name__ == '__main__':
                               show_callback=args.show_callback, axis_order=args.permute_axes,
                               comparison_mesh=None, radius_guess=radius_guess, center_guess=center_guess,
                               plot_mesh3d=args.plot_mesh3d, clip=clip, clip_floor=clip_floor,
-                              labelcheckax=not args.hide_check_axis_ticks)
+                              labelcheckax=not args.hide_check_axis_ticks, volumetric=args.volumetric,
+                              target_volume=target_volume, nu_max=args.nu_max)
         print('Extracted level set')
 
         # Extract edges of level set
