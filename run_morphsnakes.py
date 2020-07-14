@@ -655,12 +655,41 @@ if __name__ == '__main__':
         -ofn_ls msls_apical_ -l1 1 -l2 1 -nu 2 -smooth 1 -postsmooth 5 -postnu 5 -n 26 -n0 76 -exit 5e-6
         
         
+    python run_morphsnakes.py -dataset \
+        -o /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4-UAShistRFP/201901021550_folded_2part/ \
+        -i /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4-UAShistRFP/201901021550_folded_2part/ \
+        -ofn_ply mesh_apical_ms_ \
+        -ofn_ls msls_apical_ -l1 1 -l2 1 -nu 0.1 -smooth 0.3 -postsmooth 3 -postnu 2 -n 25 -n0 76 -exit 5e-6
+        
+        
     python /mnt/data/code/morphsnakes_wrapper/morphsnakes_wrapper/run_morphsnakes.py -i \
         Time_000104_c1_stab_Probabilities.h5 \
         -init_ls msls_apical_stab_000103.h5 -o \
          /mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/msls_output/ \
          -prenu -4 -presmooth 1 -ofn_ply mesh_apical_ms_stab_000104.ply -ofn_ls \
          msls_apical_stab_000104.h5 -l1 1 -l2 1 -nu 0.1 -postnu 2 -channel 1 -smooth 0.3 -postsmooth 4 \
+          -exit 0.000100000 -channel 0 -dtype h5 -permute zyxc -ss 4 -include_boundary_faces -save \
+          -center_guess 200,75,75 -volumetric -rad0 40 -n 15
+          
+    cd morphsnakes_wrapper/
+    dataDir="/mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/"
+    mslsDir="${datDir}msls_output/"
+    idx=$(printf "%03d" $(( num )))
+    prev=$(printf "%03d" $(( num-1 )))
+    python /mnt/data/code/morphsnakes_wrapper/morphsnakes_wrapper/run_morphsnakes.py -i \
+        ${datDir}Time_000${idx}_c1_stab_Probabilities.h5 \
+        -init_ls ${mslsDir}msls_apical_stab_000${prev}.h5 \
+        -o $mslsDir \
+        -prenu -4 -presmooth 1 -ofn_ply mesh_apical_ms_stab_000${idx}.ply -ofn_ls \
+        msls_apical_stab_000${idx}.h5 -l1 1 -l2 1 -nu 4 -postnu 2 -channel 1 -smooth 0.3 -postsmooth 3 \
+        -exit 0.000100000 -channel 0 -dtype h5 -permute zyxc -ss 4 -include_boundary_faces -save \
+        -center_guess 200,75,75 -volumetric -rad0 40 -n 15
+                
+    python ./run_morphsnakes.py -i \
+        ${datDir}Time_000104_c1_stab_Probabilities.h5 \
+        -init_ls ${mslsDir}msls_initguess.h5 -o $mslsDir \
+         -prenu -4 -presmooth 1 -ofn_ply mesh_apical_ms_stab_000104.ply -ofn_ls \
+         msls_apical_stab_000104.h5 -l1 1 -l2 1 -nu 0.1 -postnu 2 -channel 1 -smooth 0.3 -postsmooth 3 \
           -exit 0.000100000 -channel 0 -dtype h5 -permute zyxc -ss 4 -include_boundary_faces -save \
           -center_guess 200,75,75 -volumetric -rad0 40 -n 15
 
@@ -753,7 +782,7 @@ if __name__ == '__main__':
     parser.add_argument('-volumetric', '--volumetric', help='Use volumetric pressure in Chan-Vese (Energy~p*V).',
                         action='store_true')
     parser.add_argument('-volume0', '--target_volume', help='Target volume for pressure in Chan-Vese (Energy~p*V).',
-                        type=float, default=1000.0)
+                        type=float, default=40000.0)
     parser.add_argument('-nu_max', '--nu_max', help='Maximum pressure steps per iteration in Chan-Vese (Energy~p*V).',
                         type=int, default=5)
     parser.add_argument('-include_boundary_faces', '--include_boundary_faces',
@@ -779,6 +808,16 @@ if __name__ == '__main__':
         -ofn_ply mesh_apical_ms_ -rad0 10 -save -prenu -5 -presmooth 1 \
         -ofn_ls msls_apical_ -l1 1 -l2 1 -nu 0 -smooth 0.1 -postsmooth 4 -postnu 4 -n 26 -n0 126 -exit 5e-4 -prob *Probabilities_cells.h5 \
         -init_ls /Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/data/48Ygal4UasCAAXmCherry/48Ygal4UasCAAXmCherry_20190207200_excellent/cells_h5/msls_apical_init.npy
+        
+        python /mnt/data/code/morphsnakes_wrapper/morphsnakes_wrapper/run_morphsnakes.py -dataset -volumetric -i \
+         /mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/ \
+         -prob _stab_Probabilities.h5 -n0 5 -o \
+          /mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/msls_output/ \
+          -prenu -4 -presmooth 1 -ofn_ply mesh_apical_ms_stab_ -ofn_ls msls_apical_stab_ -l1 1 -l2 1 -nu 4 -postnu 2 \
+          -channel 1 -smooth 0.3 -postsmooth 4 -exit 0.000100000 -channel 0 -dtype h5 -permute zyxc -ss 4 \
+           -include_boundary_faces -save -center_guess 200,75,75 -rad0 40 -init_ls \
+           /mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/msls_output/msls_initguess.h5 -n 15
+
         
         """
         print('Running in dataset mode.')
@@ -847,7 +886,10 @@ if __name__ == '__main__':
                         print('Extracted init_ls with shape ', np.shape(init_ls))
 
                     # Target volume is raw volume from loaded levelset
-                    target_volume = sum(init_ls.ravel())
+                    if init_ls is not None:
+                        target_volume = sum(init_ls.ravel())
+                    else:
+                        target_volume = args.target_volume
 
                     # Since there is an initial set, don't use the default spherical guess
                     radius_guess = None
@@ -1103,20 +1145,27 @@ if __name__ == '__main__':
             -postnu -2 -channel -1 -smooth 1 -postsmooth 4 -exit 0.000001000 -dset_name inputData -rad0 30 -n 35 -save
             -dtype h5 -init_ls /Users/npmitchell/Dropbox/Soft_Matter/UCSB/qbio-vip8_shared/tolls/Time_000000_c3_levelset.h5 -l2 2 -clip 500
         
-        for (( num=110; num<=111; num++ ))
+        ## LifeAct settings
+        datDir="/mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/"
+        datDir="/mnt/data/48YGal4UasLifeActRuby/201902201200_unusualfolds/Time6views_60sec_1p4um_25x_obis1_exp0p35_3/data/deconvolved_16bit/"
+        for (( num=1; num<=190; num++ ))
         do
-            datDir="/mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/"
             mslsDir="${datDir}msls_output/"
             idx=$(printf "%03d" $(( num )))
             prev=$(printf "%03d" $(( num-1 )))
+            initls=${mslsDir}msls_apical_stab_000${prev}.h5
+            #initls=${mslsDir}msls_initguess.h5
             python /mnt/data/code/morphsnakes_wrapper/morphsnakes_wrapper/run_morphsnakes.py -i \
                 ${datDir}Time_000${idx}_c1_stab_Probabilities.h5 \
-                -init_ls ${mslsDir}msls_apical_stab_000${prev}.h5 \
+                -init_ls $initls \
                 -o $mslsDir \
-                -prenu -4 -presmooth 1 -ofn_ply mesh_apical_ms_stab_000${idx}.ply -ofn_ls \
-                msls_apical_stab_000${idx}.h5 -l1 1 -l2 1 -nu 4 -postnu 2 -channel 1 -smooth 0.3 -postsmooth 3 \
-                -exit 0.000100000 -channel 0 -dtype h5 -permute zyxc -ss 4 -include_boundary_faces -save \
-                -center_guess 200,75,75 -volumetric -rad0 40 -n 15
+                -prenu -4 -presmooth 0 -ofn_ply mesh_apical_ms_stab_000${idx}.ply -ofn_ls \
+                msls_apical_stab_000${idx}.h5 -l1 1 -l2 1 -postnu 3 -channel 1 -smooth 0.2 -postsmooth 2 \
+                -exit 0.000100000 -channel 0 -dtype h5 -permute zyxc -ss 4 -include_boundary_faces \
+                -center_guess 150,95,95 -rad0 20 -n 15 -volumetric -nu_max 2 -nu 4
+            # -save -nu 0.3
+            #
+            # -volumetric -nu_max 1  -nu 4
         done
         """
         fn = args.input
@@ -1136,6 +1185,7 @@ if __name__ == '__main__':
             load_init = False
 
         print(args.init_ls_fn)
+        print('Load init? ' + str(load_init))
         if not load_init:
             init_ls = None
 
@@ -1156,6 +1206,7 @@ if __name__ == '__main__':
             if args.init_ls_fn[-3:] == 'npy':
                 init_ls = np.load(args.init_ls_fn)
             elif args.init_ls_fn[-3:] in ['.h5', 'df5']:
+                print('Loading init_ls from ' + args.init_ls_fn)
                 f = h5py.File(args.init_ls_fn, 'r')
                 init_ls = f['implicit_levelset'][:]
                 f.close()
@@ -1190,7 +1241,10 @@ if __name__ == '__main__':
             clip_floor = None
 
         # prepare for volumetric pressure: target volume
-        target_volume = sum(init_ls.ravel())
+        if init_ls is not None:
+            target_volume = sum(init_ls.ravel())
+        else:
+            target_volume = args.target_volume
 
         ls = extract_levelset(fn, iterations=args.niters, channel=channel, init_ls=init_ls,
                               smoothing=args.smoothing, lambda1=args.lambda1, lambda2=args.lambda2,
