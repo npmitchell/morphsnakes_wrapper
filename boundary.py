@@ -22,7 +22,7 @@ def tock(s=''):
 
 
 def shift(a, n=1):
-    return a[(arange(len(a)) + n) % len(a)]
+    return a[(np.arange(len(a)) + n) % len(a)]
 
 
 def delta(a):
@@ -30,37 +30,37 @@ def delta(a):
 
 
 def D(x):
-    x = array(x)
+    x = np.array(x)
     return 0.5 * (shift(x, +1) - shift(x, -1))
 
 
 def norm_ang(a):
-    return (a + pi) % (2 * pi) - pi
+    return (a + np.pi) % (2 * pi) - pi
 
 
 def xy_angle(a):
-    return arctan2(a[:, 1], a[:, 0])
+    return np.arctan2(a[:, 1], a[:, 0])
 
 
 def torus_knot(p=2, q=3, a=0.25, npts=100, phi_s=None, phi_e=None):
     if phi_s is None:
-        phi = 2 * pi * arange(npts) / npts
+        phi = 2 * np.pi * np.arange(npts) / npts
     else:
-        phi = linspace(phi_s, phi_e, npts)
+        phi = np.linspace(phi_s, phi_e, npts)
 
-    r = 1 + a * sin(q * phi)
+    r = 1 + a * np.sin(q * phi)
 
-    x = r * cos(p * phi)
-    y = r * sin(p * phi)
-    z = -a * cos(q * phi)
+    x = r * np.cos(p * phi)
+    y = r * np.sin(p * phi)
+    z = -a * np.cos(q * phi)
 
-    return array((x, y, z)).T
+    return np.array((x, y, z)).T
 
 
 def join_points(*points):
     d = max(p.shape[1] if p is not None else 0 for p in points)
     N = sum(p.shape[0] if p is not None else 0 for p in points)
-    x = zeros((N, d))
+    x = np.zeros((N, d))
     n = 0
     for p in points:
         if p is not None:
@@ -73,7 +73,7 @@ def join_points_3D(*points):
     # for p in points: print p.shape #Debugging
     d = 3
     N = sum(p.shape[0] if p is not None else 0 for p in points)
-    x = zeros((N, d))
+    x = np.zeros((N, d))
     n = 0
     for p in points:
         if p is not None:
@@ -84,7 +84,7 @@ def join_points_3D(*points):
 
 class Boundary(object):
     def __init__(self, *paths):
-        self.paths = map(array, paths)
+        self.paths = map(np.array, paths)
 
     def inverse(self):
         return Boundary(*[p[::-1].copy() for p in self.paths])
@@ -112,8 +112,8 @@ class Boundary(object):
 
     def clip_points(self, p, offset=0):
         """"""
-        wn = array(map(self.winding_number, p))
-        return p[where(wn > offset)]
+        wn = np.array(map(self.winding_number, p))
+        return p[np.where(wn > offset)]
 
     def mesh_cap(self, offset=0, direction=1, ignore_wind=False):
         points = join_points_3D(*self.paths)
@@ -166,7 +166,7 @@ class Boundary(object):
             if points.shape[1] == 2:
                 if verbose:
                     print('adding 3rd dimension to points...')
-                points = hstack((points, zeros((len(points), 1))))
+                points = np.hstack((points, np.zeros((len(points), 1))))
 
             # check
             # print 'supplied points = ', points
@@ -180,7 +180,7 @@ class Boundary(object):
             if min_dist is not None:
                 ap3 = all_points.reshape(len(all_points), 1, 3)[:, :, :2]
                 p3 = points.reshape(1, len(points), 3)[:, :, :2]
-                points = points[where(
+                points = points[np.where(
                     sum((ap3 - p3) ** 2, 2).min(0) > (min_dist ** 2)
                 )[0]]
 
@@ -202,7 +202,7 @@ class Boundary(object):
         m.force_z_normal(direction=direction)
 
         if relax:
-            fixed = arange(n_bound)
+            fixed = np.arange(n_bound)
             m.relax_z(fixed, relax)
         if verbose:
             tock('   mesh relaxation: ')
@@ -231,8 +231,8 @@ class Boundary(object):
             plt.show()
 
             m = mesh.Mesh(
-                vstack((m.points, m.points - (0, 0, extrude))),
-                vstack((m.triangles, m.triangles[:, ::-1] + npts, edge_tris))
+                np.vstack((m.points, m.points - (0, 0, extrude))),
+                np.vstack((m.triangles, m.triangles[:, ::-1] + npts, edge_tris))
             )
             # print 'np.max(m.points) = ', np.max(m.points)
             # sys.exit()
@@ -270,13 +270,13 @@ class Boundary(object):
 
         if points is not None:
             if points.shape[1] == 2:
-                points = hstack((points, zeros((len(points), 1))))
+                points = np.hstack((points, np.zeros((len(points), 1))))
             points = self.clip_points(points, offset)
 
             if min_dist is not None:
                 ap3 = all_points.reshape(len(all_points), 1, 3)[:, :, :2]
                 p3 = points.reshape(1, len(points), 3)[:, :, :2]
-                points = points[where(
+                points = points[np.where(
                     sum((ap3 - p3) ** 2, 2).min(0) > (min_dist ** 2)
                 )[0]]
 
@@ -298,9 +298,9 @@ class Boundary(object):
         m.force_z_normal()
 
         if relax:
-            fixed = arange(n_bound)
+            fixed = np.arange(n_bound)
             if fixed_points is not None:
-                fixed = hstack((fixed, fixed_points + n_bound))
+                fixed = np.hstack((fixed, fixed_points + n_bound))
 
             m.relax_z(fixed, relax)
         if verbose:
@@ -325,8 +325,8 @@ class Boundary(object):
                 n0 += pip
 
             m = mesh.Mesh(
-                vstack((m.points, m.points - (0, 0, extrude))),
-                vstack((m.triangles, m.triangles[:, ::-1] + npts, edge_tris))
+                np.vstack((m.points, m.points - (0, 0, extrude))),
+                np.vstack((m.triangles, m.triangles[:, ::-1] + npts, edge_tris))
             )
         if verbose:
             # tock('   extrusion: ')
@@ -344,8 +344,8 @@ class Boundary(object):
             N[:, 0] = -T[:, 1]
             N[:, 1] = T[:, 1]
 
-            wn = array(map(self.winding_number_abs, p + offset * N)) + \
-                 array(map(self.winding_number_abs, p - offset * N))
+            wn = np.array(map(self.winding_number_abs, p + offset * N)) + \
+                 np.array(map(self.winding_number_abs, p - offset * N))
 
             wn //= 2
 
@@ -360,10 +360,10 @@ class Boundary(object):
                 continue
 
             # Break into segments
-            p = vstack((p[i:], p[:i]))
-            wn = hstack((wn[i:], wn[:i]))
+            p = np.vstack((p[i:], p[:i]))
+            wn = np.hstack((wn[i:], wn[:i]))
 
-            for i in arange(N):
+            for i in np.arange(N):
                 im = (i - 1) % N
                 if wn[im] != 0 and wn[i] == 0:
                     start = i
@@ -378,48 +378,48 @@ class Boundary(object):
         while segments:
             d = map(lambda s: (sum(segments[0][0][-1][:2] - s[0][0][:2]) ** 2), segments)
             # print d
-            i = argmin(d)
+            i = np.argmin(d)
 
             p_int = find_2d_intersection(segments[0][0][-1], segments[0][2], segments[i][0][0], segments[i][1])
 
             s = segments.pop(i)
-            s[0] = vstack((p_int, s[0]))
+            s[0] = np.vstack((p_int, s[0]))
 
             if i == 0:
                 b.paths.append(s[0])
 
             else:
-                segments[0][0] = vstack((segments[0][0], s[0]))
+                segments[0][0] = np.vstack((segments[0][0], s[0]))
                 segments[0][2] = s[2]
 
         return b
 
     def plot_paths(self, plot_func, *args, **kwargs):
         for p in self.paths:
-            x, y = vstack((p, p[0])).T
+            x, y = np.vstack((p, p[0])).T
             plot_func(x, y, *args, **kwargs)
 
 
 def circle(c, r, npts=100):
-    theta = arange(npts, dtype='d') / npts * 2 * pi
-    p = zeros((npts, len(c)))  # c might be 3D!
+    theta = np.arange(npts, dtype='d') / npts * 2 * pi
+    p = np.zeros((npts, len(c)))  # c might be 3D!
     p[:] = c
-    p[:, 0] += r * cos(theta)
-    p[:, 1] += r * sin(theta)
+    p[:, 0] += r * np.cos(theta)
+    p[:, 1] += r * np.sin(theta)
     return Boundary(p)
 
 
 def hex_grid(r, a):
     npts = int(r // a)
-    xi, yi = mgrid[-npts:npts + 1, -npts:npts + 1]
+    xi, yi = np.mgrid[-npts:npts + 1, -npts:npts + 1]
     xi = xi.flatten()
     xi.shape += (1,)
     yi = yi.flatten()
     yi.shape = xi.shape
-    xo = array((1, 0)) * a
-    yo = array((0.5, sqrt(3.) / 2.)) * a
+    xo = np.array((1, 0)) * a
+    yo = np.array((0.5, np.sqrt(3.) / 2.)) * a
 
-    return (xi * xo + yi * yo)[where(abs(xi + yi) <= npts)[0]]
+    return (xi * xo + yi * yo)[np.where(abs(xi + yi) <= npts)[0]]
 
 
 def find_2d_intersection(p0, d0, p1, d1):
@@ -444,8 +444,8 @@ if __name__ == '__main__':
         fill(p[:, 0], p[:, 1], *args, **kwargs)
 
 
-    x, y = mgrid[-1:1:.1, -1:1:.1]
-    p = array((x.flatten(), y.flatten())).T
+    x, y = np.mgrid[-1:1:.1, -1:1:.1]
+    p = np.array((x.flatten(), y.flatten())).T
 
     # b = circle((0, 0), 1.0) + circle((1, 0), 1.0) + circle((0.5, 1), 0.5)
     b = Boundary(torus_knot(3, 5, npts=200))
