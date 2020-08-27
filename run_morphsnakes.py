@@ -1167,6 +1167,31 @@ if __name__ == '__main__':
             #
             # -volumetric -nu_max 1  -nu 4
         done
+        
+        ## VIP 10 CAAX
+        datDir="/mnt/crunch/48YGal4UasLifeActRuby/201904021800_great/Time6views_60sec_1p4um_25x_1p0mW_exp0p150_3/data/deconvolved_16bit/"
+        datDir="/mnt/data/48YGal4UasLifeActRuby/201902201200_unusualfolds/Time6views_60sec_1p4um_25x_obis1_exp0p35_3/data/deconvolved_16bit/"
+        datDir="/mnt/crunch/gut/48YGal4klarUASCAAXmChHiFP/202001221000_60sec_1p4um_25x_1mW_2mW_exp0p25_exp0p7/Time3views_1017/data/deconvolved_16bit/"
+        for (( num=0; num<=196; num++ ))
+        do
+            mslsDir="${datDir}msls_output/"
+            idx=$(printf "%03d" $(( num )))
+            prev=$(printf "%03d" $(( num-1 )))
+            if (($num>0))
+            then
+                initls=${mslsDir}msls_apical_stab_000${prev}.h5
+            else
+                initls=${mslsDir}msls_initguess.h5
+            fi
+            python3 /mnt/data/code/morphsnakes_wrapper/run_morphsnakes.py -i \
+                Time_000${idx}_c1_stab_Probabilities.h5 \
+                -init_ls $initls \
+                -o $mslsDir -prenu -4 -presmooth 0 -ofn_ply mesh_apical_ms_stab_000${idx}.ply \
+                -ofn_ls msls_apical_stab_000${idx}.h5 -l1 1 -l2 1 -nu 0.2 \
+                -postnu 3 -channel 1 -smooth 0.2 -postsmooth 1 \
+                -exit 0.000010 -channel 0 -dtype h5 -permute zyxc -ss 4 \
+                -include_boundary_faces -save -center_guess 200,75,75 -rad0 40 -n 45
+        done
         """
         fn = args.input
         outputdir = os.path.join(args.outputdir, '')
