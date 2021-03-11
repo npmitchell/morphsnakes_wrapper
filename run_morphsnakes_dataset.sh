@@ -32,7 +32,7 @@ command+="-ofn_ply $ofn_ply -rad0 10 -prenu $pre_nu -presmooth $pre_smoothing "
 command+="-ofn_ls $ofn_ls -l1 $lambda1 -l2 $lambda2 -nu $nu "
 command+="-smooth $smoothing -postsmooth $post_smoothing -postnu $post_nu "
 command+="-n "$niter" -n0 "$niter0" -exit "$exit_thres" -prob Probabilities.h5 -save "
-command+="-init_ls "$mslsDir"msls_apical_init.npy"
+command+="-init_ls "$mslsDir"msls_initguess.npy"
 echo "$command"
 $command
 
