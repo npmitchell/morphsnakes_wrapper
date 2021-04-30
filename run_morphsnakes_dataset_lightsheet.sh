@@ -63,16 +63,16 @@ $command
 # datDir="/path/to/my/data/";
 # cd $datDir
 
-idx=20;
-step=10;
-for (( num=1; num<=10; num++ )); do
+idx=10;
+step=1;
+for (( num=1; num<=63; num++ )); do
 	mslsDir="${datDir}msls_output/";   
 	idxStr=$(printf "%03d" $(( idx )));     
 	prev=$(printf "%03d" $(( $idx - $step )))  
-       if (($num>0))
+       if (($idx>0))
        then
 	# for subsequent timepoints, use the previous timepoint's h5 output
-           initls=${mslsDir}msls_000${prev}.h5
+           initls=${mslsDir}msls_apical_stab_000${prev}.h5
        else
 	#  for the first timepoint, use the initial guess h5 (may need to iterate the first timepoint several times
            initls=${mslsDir}msls_initguess.h5
@@ -92,18 +92,19 @@ done
 nu=1;
 smoothing=1;
 post_nu=2;
-pre_nu=-1;
+post_smoothing=2;
+pre_nu=-4;
 niter=11;
-idx=0;
-step=10;
-for (( num=1; num<=10; num++ )); do
+idx=40;
+step=1;
+for (( num=0; num<=0; num++ )); do
 	mslsDir="${datDir}msls_output/";   
 	idxStr=$(printf "%03d" $(( idx )));     
 	prev=$(printf "%03d" $(( $idx )))  
 
 	# use the previous pass of current timepoint's h5 output
         initls=${mslsDir}msls_pass_000${prev}.h5
-	python /mnt/data/code/morphsnakes_wrapper/morphsnakes_wrapper/run_morphsnakes.py -i Time_000${idxStr}_stab_Probabilities.h5 -init_ls $initls -o $mslsDir -prenu $pre_nu -presmooth $pre_smoothing -ofn_ply mesh_apical_ms_stab_000${idxStr}.ply -ofn_ls msls_apical_stab_000${idxStr}.h5 -l1 $lambda1 -l2 $lambda2 -nu $nu -postnu $post_nu -smooth $smoothing -postsmooth $post_smoothing -exit $exit_thres -channel 1 -dtype h5 -ss $ssfactor -include_boundary_faces -rad0 80 -n $niter -save -adjust_for_MATLAB_indexing -permute czyx ;
+	python /mnt/data/code/morphsnakes_wrapper/morphsnakes_wrapper/run_morphsnakes.py -i Time_000${idxStr}_stab_Probabilities.h5 -init_ls $initls -o $mslsDir -prenu $pre_nu -presmooth $pre_smoothing -ofn_ply mesh_apical_ms_stab_000${idxStr}.ply -ofn_ls msls_apical_stab_000${idxStr}.h5 -l1 $lambda1 -l2 $lambda2 -nu $nu -postnu $post_nu -smooth $smoothing -postsmooth $post_smoothing -exit $exit_thres -channel 1 -dtype h5 -ss $ssfactor -include_boundary_faces -rad0 80 -n $niter -adjust_for_MATLAB_indexing -permute czyx ;
 	# zyxc
 	idx=$(($idx+$step));
 done
