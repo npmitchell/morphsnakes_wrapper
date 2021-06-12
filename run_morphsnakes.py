@@ -498,7 +498,8 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
     return img
 
 
-def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=None, post_smoothing=1, post_nu=1,
+def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=None, post_smoothing0=0,
+                     post_smoothing=1, post_nu=1,
                      channel=0, init_ls=None, show_callback=False, save_callback=False, exit_thres=5e-6,
                      center_guess=None, radius_guess=None, impath=None, dset_name='exported_data',
                      plot_each=5, comparison_mesh=None, axis_order='xyzc', plot_diff=True,
@@ -589,6 +590,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
         ls = ms.volumetric_morphological_chan_vese(img, iterations=iterations,
                                                    init_level_set=init_ls,
                                                    smoothing=smoothing, lambda1=lambda1, lambda2=lambda2, nu=nu,
+                                                   post_smoothing0=post_smoothing0,
                                                    post_smoothing=post_smoothing, post_nu=post_nu,
                                                    iter_callback=callback, exit_thres=exit_thres,
                                                    volume0=target_volume, nu_max=nu_max)
@@ -596,6 +598,7 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
         ls = ms.morphological_chan_vese(img, iterations=iterations,
                                         init_level_set=init_ls,
                                         smoothing=smoothing, lambda1=lambda1, lambda2=lambda2, nu=nu,
+                                        post_smoothing0=post_smoothing0,
                                         post_smoothing=post_smoothing, post_nu=post_nu,
                                         iter_callback=callback, exit_thres=exit_thres)
     return ls
@@ -742,8 +745,10 @@ if __name__ == '__main__':
     parser.add_argument('-postnu', '--post_nu',
                         help='Number of dilation (nu > 0) or erosion (nu < 0) passes after iterations completed',
                         type=int, default=5)
-    parser.add_argument('-postsmooth', '--post_smoothing', help='Number of smoothing passes after iterations completed',
+    parser.add_argument('-postsmooth', '--post_smoothing', help='Number of final smoothing passes after iterations completed after post_nu',
                         type=int, default=5)
+    parser.add_argument('-postsmooth0', '--post_smoothing0', help='Number of initial smoothing passes after iterations completed, before post_nu',
+                        type=int, default=0)
     parser.add_argument('-exit', '--exit_thres', help='Number of smoothing passes per iteration', type=float,
                         default=5e-6)
     parser.add_argument('-n', '--niters', help='Number of iterations per timepoint', type=int, default=26)
@@ -948,7 +953,8 @@ if __name__ == '__main__':
             # Perform the levelset calculation
             ls = extract_levelset(fn, iterations=niters, channel=args.channel, init_ls=init_ls,
                                   smoothing=args.smoothing, lambda1=args.lambda1, lambda2=args.lambda2,
-                                  nu=args.nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
+                                  nu=args.nu, post_smoothing0=args.post_smoothing0,
+                                  post_smoothing=args.post_smoothing, post_nu=args.post_nu,
                                   exit_thres=args.exit_thres, dset_name=args.dset_name,
                                   impath=outdir_k, plot_each=10, save_callback=args.save_callback,
                                   show_callback=args.show_callback, axis_order=args.permute_axes,
@@ -1072,7 +1078,8 @@ if __name__ == '__main__':
         for nu in nus:
             for smooth in smooths:
                 name = '_nu{0:0.2f}'.format(nu).replace('.', 'p') + '_s{0:02d}'.format(smooth)
-                name += '_pnu{0:02d}'.format(args.post_nu) + '_ps{0:02d}'.format(args.post_smoothing)
+                name += '_pnu{0:02d}'.format(args.post_nu) + '_p1s{0:02d}'.format(args.post_smoothing0)
+                name += '_p2s{0:02d}'.format(args.post_smoothing)
                 name += '_l{0:0.2f}'.format(args.lambda1).replace('.', 'p')
                 name += '_l{0:0.2f}'.format(args.lambda2).replace('.', 'p')
 
@@ -1084,7 +1091,8 @@ if __name__ == '__main__':
 
                 ls = extract_levelset(fn, iterations=args.niters, channel=args.channel, init_ls=init_ls,
                                       smoothing=smooth, lambda1=args.lambda1, lambda2=args.lambda2,
-                                      nu=nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
+                                      nu=nu, post_smoothing0=args.post_smoothing0,
+                                      post_smoothing=args.post_smoothing, post_nu=args.post_nu,
                                       exit_thres=args.exit_thres,
                                       impath=imdir, plot_each=10, save_callback=args.save_callback,
                                       show_callback=args.show_callback,
@@ -1273,7 +1281,8 @@ if __name__ == '__main__':
 
         ls = extract_levelset(fn, iterations=args.niters, channel=channel, init_ls=init_ls,
                               smoothing=args.smoothing, lambda1=args.lambda1, lambda2=args.lambda2,
-                              nu=args.nu, post_smoothing=args.post_smoothing, post_nu=args.post_nu,
+                              nu=args.nu, post_smoothing0=args.post_smoothing0,
+                              post_smoothing=args.post_smoothing, post_nu=args.post_nu,
                               exit_thres=args.exit_thres, dset_name=args.dset_name,
                               impath=imdir, plot_each=10, save_callback=args.save_callback,
                               show_callback=args.show_callback, axis_order=args.permute_axes,
