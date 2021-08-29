@@ -569,10 +569,12 @@ def extract_levelset(fn, iterations=150, smoothing=0, lambda1=1, lambda2=1, nu=N
 
     # Initialization of the level-set.
     if init_ls is None:
-        print('No initial levelset supplied, using default sphere...')
+        print('No initial levelset supplied, creating a default sphere as initial condition...')
         if center_guess is None:
+            print('No initial levelset position supplied, using center of data')
             center_guess = (np.shape(img)[0]*0.5, np.shape(img)[1]*0.5, np.shape(img)[2]*0.5)
         if radius_guess is None:
+            print('No initial levelset radius supplied, using half minimum coordinate size')
             radius_guess = min(np.abs(center_guess)) * 0.5
 
         init_ls = ms.circle_level_set(img.shape, center_guess, radius_guess)
