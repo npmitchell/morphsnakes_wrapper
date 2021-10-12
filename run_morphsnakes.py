@@ -1234,9 +1234,12 @@ if __name__ == '__main__':
         fn = args.input
         outputdir = os.path.join(args.outputdir, '')
         outfn_ply = outputdir + args.outputfn_ply
+
         if outfn_ply[-4:] != '.ply':
             outfn_ply += '.ply'
         outfn_ls = outputdir + args.outputfn_ls
+
+        print('We will save output as ', outfn_ls)
 
         imdir = outputdir + 'morphsnakes_check/'
 
@@ -1273,6 +1276,10 @@ if __name__ == '__main__':
                 f = h5py.File(args.init_ls_fn, 'r')
                 init_ls = f['implicit_levelset'][:]
                 f.close()
+            elif args.init_ls_fn[-3:] == 'tif' or args.init_ls_fn[-4:] == 'tiff':
+                init_ls = read_multipage_tiff(args.init_ls_fn)
+            else:
+                raise RuntimeError("Initial guess must be npy, h5, or tif")
 
             radius_guess = None
             center_guess = None
@@ -1376,7 +1383,7 @@ if __name__ == '__main__':
         elif args.saved_datatype in ['h5', 'hdf5']:
             # Save ls for this timepoint as an hdf5 file
             if outfn_ls[-3:] != '.h5' and outfn_ls[-5:] != '.hdf5':
-                outfn_ls += outfn_ls + '.h5'
+                outfn_ls = outfn_ls + '.h5'
 
             print('saving ', outfn_ls)
             msaux.save_ls_as_h5(outfn_ls, ls)
