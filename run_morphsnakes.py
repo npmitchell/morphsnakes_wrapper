@@ -11,6 +11,10 @@ import mcubes
 import morphsnakes_aux_fns as msaux
 from scipy import ndimage as ndi
 import h5py
+try:
+    from PIL import Image
+except:
+    print('Could not import PIL. Tiff handling will be limited.')
 
 '''Extract levelset from 2d or volumetric data. This is a wrapper script for using contained in the morphsnakes module.
 
@@ -393,6 +397,25 @@ def rgb2gray(img):
     return 0.2989 * img[..., 0] + 0.587 * img[..., 1] + 0.114 * img[..., 2]
 
 
+def read_multipage_tiff(path):
+    """Load multipage tiff file as numpy array
+
+    Parameters
+    ----------
+    path - Path to the multipage-tiff file
+
+    Returns
+    -------
+    numpy array of the miltipage tiff
+    """
+    img = Image.open(path)
+    images = []
+    for i in range(img.n_frames):
+        img.seek(i)
+        images.append(np.array(img))
+    return np.array(images)
+
+
 def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
     """Load a 2d or 3d grid of intensities from disk
 
@@ -416,6 +439,11 @@ def load_img(fn, channel, dset_name='exported_data', axis_order='xyzc'):
     if fn[-3:] == 'npy':
         if channel is not None:
             img = np.load(fn)[:, :, :, channel]
+
+    elif fn[-3:] == 'tif':
+        img = read_multipage_tiff(fn)
+        print('Converting to float...')
+        img = img.astype(float)
 
     elif fn[-2:] == 'h5':
         # filename = file_architecture.os_i(filename)
