@@ -3,37 +3,36 @@
 # The data is 3D with potentially multiple channels but only one timepoint per file.
 
 # Run morphosnakes on a dataset
-ssfactor=4. # subsampling factor for the data (scales the output mesh relative to the pixel resolution of the data used for morphsnakes 
+ssfactor=1. # subsampling factor for the data (scales the output mesh relative to the pixel resolution of the data used for morphsnakes
 niter=30    # number of iterations for finding surface/level set
 ofn_ply='mesh_' # output filename for the PLY, which is a mesh format
 ofn_ls='msls_'	# output filename for the H5 with the (3D or 2D, depending on the data dimension) level set 
-ms_scriptDir='/mnt/data/code/gut_python/'  
-pre_nu=-5. 
-pre_smoothing=1
-smoothing=0.10
-nu=0.00
-post_nu=2
-post_smoothing=4
-lambda1=1
-lambda2=1
-exit_thres=0.00005
-msls_exten="_prnu${pre_nu/-/n}"
-msls_exten+='_prs'${pre_smoothing}
-msls_exten+='_nu'${nu/'.'/'p'}
-msls_exten+='_s'${smoothing/'.'/'p'}
-msls_exten+='_pn'$post_nu'_ps'$post_smoothing
-msls_exten+='_l'$lambda1'_l'$lambda2
-mslsDir=$(pwd)'/msls_output'$msls_exten'/'
-command="python ${ms_scriptDir}run_morphsnakes.py -dataset "
+ms_scriptDir='/path/to/morphsnakes_wrapper/' # path containing run_morphsnakes.py
+pre_nu=-5.      # how much to dilate the intial guess level set before minimizing free energy
+pre_smoothing=1 # how much to smooth the inital guess level set before minimizing free energy
+smoothing=0.10  # how much to smooth per iteration during minimization of free energy
+nu=0.00         # effective pressure strength, how much to dilate per iteration
+post_nu=0       # after minimization has converged, dilate the result this many voxels
+post_smoothing=4    # after minimization has converged, smooth the result this many times
+lambda1=1       # relative weight of the attachment term1
+lambda2=1       # relative weight of the attachment term2
+exit_thres=0.00005  # stop iterating if our fractional change per iteration is smaller than this amount
+mslsDir=$(pwd)'/msls_output/'  # output directory
+inputDataFn="myData.tiff"  # input TIFF or H5 or NPY data to find level set of.
+rad0=10         # radius of initial guess if no initial guess level set is supplied
+initialLevelsetFn="myInitialGuess.h5" # initial guess if you want to start with an initial guess instead of default sphere
+
+# build a command to execute the morphsnakes algorithm
+command="python ${ms_scriptDir}run_morphsnakes.py "
 command+="-o $mslsDir "
-command+="-i ./ "
+command+="-i "$inputDataFn
 command+="-ofn_ply $ofn_ply -rad0 10 -prenu $pre_nu -presmooth $pre_smoothing "
 command+="-ofn_ls $ofn_ls -l1 $lambda1 -l2 $lambda2 -nu $nu "
 command+="-smooth $smoothing -postsmooth $post_smoothing -postnu $post_nu "
-command+="-n "$niter" -n0 "$niter0" -exit "$exit_thres" -prob Probabilities.h5 "
-command+="-init_ls "$mslsDir"msls_apical_init.npy "
+command+="-n "$niter" -exit "$exit_thres" "
+command+="-init_ls "$mslsDir$initialLevelsetFn
 command+="-dtype h5 "
-# command+="-save "
+command+="-save "
 echo "$command"
 $command
 # example command:
@@ -41,25 +40,7 @@ $command
   
 
 
-# Run one timepoint at a time
-command="python ${ms_scriptDir}run_morphsnakes.py "
-command+="-o $mslsDir "
-command+="-ofn_ply $ofn_ply -rad0 10 -prenu $pre_nu -presmooth $pre_smoothing "
-command+="-ofn_ls $ofn_ls -l1 $lambda1 -l2 $lambda2 -nu $nu "
-command+="-smooth $smoothing -postsmooth $post_smoothing -postnu $post_nu "
-command+="-n "$niter" -n0 "$niter0" -exit "$exit_thres" -prob Probabilities.h5 "
-command+="-dtype h5 "
-
-for (specify timepoints here)
-	commandi = command+"-i "+fni
-	jj=i-1
-	commandi+=commandi+" -init_ls "$mslsDir"msls_apical_"jj".npy "
-	echo "$commandi"
-	$commandi
-
-
-
-# Run mlx script to smooth
+# Optional: Run mlx script to smooth
 mlxprogram='surface_rm_resample20k_reconstruct_LS3_1p2pc_ssfactor4.mlx'
 fns=$mslsDir$ofn_ply*'.ply'
 for pcfile in $fns; do
