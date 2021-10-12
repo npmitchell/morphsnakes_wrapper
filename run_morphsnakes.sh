@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 # This bash script runs the script run_morphsnakes on a dataset and then smooths the output PLYs and saves the result.
-
-# Copy msls_apical_init.npy from previous version into new version
+# The data is 3D with potentially multiple channels but only one timepoint per file.
 
 # Run morphosnakes on a dataset
-ssfactor=4
-niter=30
-niter0=30
-ofn_ply='mesh_apical_ms_'
-ofn_ls='msls_apical_'
-# ms_scriptDir='/Users/npmitchell/Dropbox/Soft_Matter/UCSB/gut_morphogenesis/gut_python/gut_python/'
-ms_scriptDir='/mnt/data/code/gut_python/'
-pre_nu=-5
+ssfactor=4. # subsampling factor for the data (scales the output mesh relative to the pixel resolution of the data used for morphsnakes 
+niter=30    # number of iterations for finding surface/level set
+ofn_ply='mesh_' # output filename for the PLY, which is a mesh format
+ofn_ls='msls_'	# output filename for the H5 with the (3D or 2D, depending on the data dimension) level set 
+ms_scriptDir='/mnt/data/code/gut_python/'  
+pre_nu=-5. 
 pre_smoothing=1
 smoothing=0.10
 nu=0.00
