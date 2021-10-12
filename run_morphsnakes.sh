@@ -23,7 +23,7 @@ rad0=10         # radius of initial guess if no initial guess level set is suppl
 initialLevelsetFn="myInitialGuess.h5" # initial guess if you want to start with an initial guess instead of default sphere
 
 # build a command to execute the morphsnakes algorithm
-command="python ${ms_scriptDir}run_morphsnakes.py "
+command="python3 ${ms_scriptDir}run_morphsnakes.py "
 command+="-o $mslsDir "
 command+="-i "$inputDataFn
 command+="-ofn_ply $ofn_ply -rad0 10 -prenu $pre_nu -presmooth $pre_smoothing "
@@ -35,23 +35,3 @@ command+="-dtype h5 "
 command+="-save "
 echo "$command"
 $command
-# example command:
-# python /mnt/data/code/gut_python/run_morphsnakes.py -i Time_000000_c3.h5 -o /mnt/crunch/tolls/toll6_eve_neurotactin/msls_output_nu0p10_s1_pn4_ps4_l1_l1/ -prenu 0 -presmooth 0 -ofn_ply mesh_apical_ms_000000.ply -ofn_ls msls_apical_000000.npy -l1 1 -l2 1 -nu 0.1 -postnu 4 -channel -1 -smooth 1 -postsmooth 4 -exit 0.000001000 -dset_name inputData -rad0 10 -n 115
-  
-
-
-# Optional: Run mlx script to smooth
-mlxprogram='surface_rm_resample20k_reconstruct_LS3_1p2pc_ssfactor4.mlx'
-fns=$mslsDir$ofn_ply*'.ply'
-for pcfile in $fns; do
-    # Clean up mesh file for this timepoint using MeshLab -----------------
-    outputmesh=${pcfile/$ofn_ply/'mesh_apical_0'}
-    meshlabscript='./'$mlxprogram
-    if [ ! -f $outputmesh ]; then
-        echo $outputmesh
-        command="meshlabserver -i $pcfile -o $outputmesh -s $meshlabscript -om vn"
-        $command
-    else
-        echo "File already exists: "$outputmesh
-    fi
-done
