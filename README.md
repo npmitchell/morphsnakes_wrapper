@@ -11,7 +11,7 @@ $ git clone https://github.com/npmitchell/morphsnakes.git
 
 $ cd morphsnakes
 
-$ python setup.py develop
+$ python3 setup.py develop
 
 $ git clone https://github.com/npmitchell/morphsnakes_wrapper.git
 
